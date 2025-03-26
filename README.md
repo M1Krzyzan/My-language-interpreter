@@ -1,93 +1,354 @@
-# TKOM_INTERPRETER
+# Interpreter własnego języka programowania
+### Wymagania funkcjonalne  
+- Typowanie silne i statyczne  
+- W języku zdefiniowane są następujące typy podstawowe:  
+  - liczby całkowite: `int`  
+  - liczby zmiennoprzecinkowe: `float`  
+  - ciągi znaków: `string`  
+  - wartości logiczne: `bool`  
+- Zmienne są mutowalne, z wyjątkiem typu `string`  
+- Zmienne są widoczne na poziomie, na którym zostały zadeklarowane  
+- Obsługuje podstawowe operacje matematyczne:  
+  - mnożenie  
+  - dzielenie  
+  - dodawanie  
+  - odejmowanie  
+- Obsługuje operacje logiczne:  
+  - negacja  
+  - koniunkcja  
+  - alternatywa  
+- Konkatenacja na stringach  
+- Komentarze jednoliniowe `#` i wieloliniowe `/* */`  
+- Instrukcja warunkowa `if-elif-else`  
+- Obsługuje instrukcję pętli `while`  
+- Możliwość definiowania i wywoływania własnych funkcji wraz z lokalnymi argumentami  
+- Możliwość definiowania funkcji typu `void`, które nie zwracają żadnych wartości  
+- Argumenty do funkcji są przekazywane przez wartość  
+- Możliwość definiowania własnych wyjątków  
+- Wbudowany obiekt bazowy, który jest nadrzędny nad wszystkimi utworzonymi wyjątkami  
+- Filtrowanie wyjątków przy pomocy instrukcji `try-catch`  
+- Możliwość rzucania wyjątków  
+- Wbudowana funkcja `print` przeznaczona do wypisywania tekstu na standardowe wyjście  
+- Wbudowana funkcja `input` przeznaczona do wczytywania tekstu ze standardowego wejścia  
 
+### Wymagania niefunkcjonalne  
+- Leniwa tokenizacja  
+- Obsługa co najmniej dwóch typów źródeł kodu, np. z pliku  
+- Obsługa różnych zakończeń linii, np. Linux: Windows  
+- Wypisywanie błędów z poszczególnych etapów interpretacji  
 
+### Sposób rzutowania typów  
+| Typ źródłowy | Typ docelowy | Sposób konwersji                                                                                       |
+|:------------:|:------------:|:-------------------------------------------------------------------------------------------------------|
+|     int      |    float     | do liczby całkowitej dodawana jest końcówka `.0`                                                       |
+|     int      |     bool     | każda liczba inna od `0` jest zamieniana na `true`                                                     |
+|     int      |    string    | liczba jest zapisywana w `""`, np. `"12"`                                                              |
+|    float     |     int      | ucinana jest część ułamkowa liczby                                                                     |
+|    float     |     bool     | każda liczba inna od `0.0` jest zamieniana na `true`                                                   |
+|    float     |    string    | liczba jest zapisywana w `""`, np. `"1.2"`                                                             |
+|    string    |     int      | możliwe jest tylko rzutowanie, jeśli string reprezentuje liczbę całkowitą, np. `"42"`                  |
+|    string    |    float     | możliwe jest tylko rzutowanie, jeśli string reprezentuje liczbę zmiennoprzecinkową, np. `"1.523"`      |
+|    string    |     bool     | każdy ciąg znaków inny od pustego (`""`) jest zamieniany na `true`                                     |
+|     bool     |     int      | wartość `true` zamieniana jest na `1`, a `false` na `0`                                                |
+|     bool     |    float     | wartość `true` zamieniana jest na `1.0`, a `false` na `0.0`                                            |
+|     bool     |    string    | wartość logiczna jest zamieniana na ciąg znaków: `true` na `"true"`, a `false` na `"false"`            |
 
-## Getting started
-
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
-
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
-
-## Add your files
-
-- [ ] [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-- [ ] [Add files using the command line](https://docs.gitlab.com/ee/gitlab-basics/add-file.html#add-a-file-using-the-command-line) or push an existing Git repository with the following command:
-
+### Przykłady kodu
+##### Deklaracje zmiennych i operacje na nich
 ```
-cd existing_repo
-git remote add origin https://gitlab-stud.elka.pw.edu.pl/TKOM_25L_PG/Michal_Krzyzanowski/tkom_interpreter.git
-git branch -M main
-git push -uf origin main
+int x = 5*2+1-(4+2);
+int y = 2*x;
+int z = quad(x);
+
+float a,b;
+a = x to float;
+b = quad(x) to float;
+
+string c = "Lorem ipsum dolor";
+string d = "Lorem" + " ipsum" + " dolor";
+string e = d + a to string;
+
+bool f = true;
+bool g = c == d && c != e
+```
+#### Deklaracje funkcji
+```
+int sum(float x, int y){
+  return x to int + y;
+}
+
+float quad(float x){
+  return x*x;
+}
+
+void quadratic_sum(){
+  float x = quad(sum(3.1, 5) to float));
+  print(x);
+}
+```
+#### Rekursywne wywołanie funkcji
+```
+void fibonacci(int n){
+  if(n<3){
+    return 1;
+  }
+  return fibonacci(n-2)+fibonacci(n-1);
+}
+```
+#### Interakcja z użytkownikiem - input/print
+```
+int read_number(){
+  print("Write number: ";
+  return input() to int;
+}
+
+int number_1 = read_number();
+int number_2 = read_number();
+
+float result = number_1 / number_2;
+print(number_1 to string + "/" + number_2 to string + " = " + result to string + "\n");
+```
+#### Instrukcja warunkowa `if`
+```
+void rate_number(int x){
+  if (x > 10) {
+      print("x is greater than 10");
+  } elif (x == 10) {
+      print("x is exactly 10");
+  } else {
+      print("x is less than 10");
+  }
+}
+```
+#### Pętla `while` wraz z komunikatami `break` i `continue`
+```
+void print_even_if_not_divisible_by_5(int x){
+  while (x > 0) {
+      if (x % 5 == 0) {
+          break;
+      }
+      if (x % 2 == 0) {
+          continue;
+      }
+      print("x: ", x);
+      x = x - 1;
+}
+```
+#### Tworzenie własnych wyjątków i ich filtrowanie
+```
+exception WrongNumberOfSidesError {
+    message: string = "Wrong number of sides - should be higher than 2: ";
+    number_of_sides: int;
+    line: int;
+}
+
+exception WrongNumberOfSidesError {
+    message: string = "Wrong length of side - should be higher than 0";
+    length: int;
+    line: int;
+}
+
+void main(){
+  try{
+    print("Enter number of sides of polygon: ");
+    int n = input() to int;
+    if(n < 3){
+      throw WrongNumberOfSidesError(8,n);
+    }
+    print("Enter length of side of polygon: ");
+    int length = input() to int;
+    if(length <= 0){
+      throw WrongLengthOfSideError(13, length);
+    }
+    int perimeter = n*length; 
+  } catch (Exception e){
+    print("You entered wrong data: " + e.message + "\n");
+  }
+}
+```
+#### Komentarze
+```
+/* Komentarz
+   blokowy */
+int x = 5; # Komentarz jednoliniowy
+```
+### Formalna specyfikacja i składnia (EBNF)
+```ebnf
+
+program = {function_definition | variable_declaration | exception_definition};
+
+function_declaration = function_return_type, identifier, "(", parameters, ")", statement_block;
+
+parameters = [parameter, {",", parameter}];
+
+parameter = simple_type, identifier;
+
+statement = if_statement |
+            while_statement |
+            loop_control_statement |
+            variable_declaration |
+            value_assigment |
+            function_call |
+            return_statement |
+            catch_statement;
+
+statement_block = "{", {statement}, "}";
+
+if_statement = "if", "(", expression, ")", statement_block,
+               {"elif", "(", expression, ")", statement_block}, 
+               ["else", statement_block];
+
+exception_throw = "throw", identifier, ";";
+
+exception_definition = "exception", identifier, "{", {attribute_definition}, "}";
+
+attribute_definition = identifier, ":", variable_declaration;
+          
+while_statement = "while", "(", expression, ")", statement_block;
+
+loop_control_statement = ("break" | "continue"), ";";
+
+variable_declaration = simple_type, identifier, ["=", expression], {identifier, ["=", expression]}, ";";
+
+value_assigment = identifier, "=", expression, ";";
+
+function_call = identifier, "(", function_arguments, ")";
+
+function_arguments = [expression, {",", expression}];
+
+return_statement = "return", expression, ";";
+
+try_catch_statement = "try", statement_block, catch_statement, {catch_statement};
+
+catch_statement = "catch", "(", exception, identifier, ")", statement_block;
+
+exception = identifier;
+
+expression = and_expression, {or_operator, and_expression};
+
+and_expression = relational_expression, {and_operator, relational_expression}; 
+
+relational_expression = additive_expression, [relational_operator, additive_expression];
+
+additive_expression = multiplicative_expression, {additive_operator, multiplicative_expression};
+
+multiplicative_expression = negated_expression, {multiplicative_operator, negated_basic_expression};
+
+negated_expression = [negation_operator], casted_basic_expression;
+
+casted_basic_expression = basic_expression, ["to", simple_type];
+
+basic_expression = identifier |
+                   literal |
+                   "(", expression, ")" |
+                   function_call;
+
+function_return_type = simple_type |
+                       "void";
+
+simple_type = "int" | 
+              "float" |
+              "string" |
+              "bool";
+
+or_operator = "||" |
+              "or";
+
+and_operator = "&&" |
+               "and";
+
+relational_operator = "==" |
+                      "!=" |
+                      "<=" |
+                      ">=" |
+                      "<" |
+                      ">";
+
+additive_operator = "+" |
+                    "-";
+
+multiplicative_operator = "*" |
+                          "/" |
+                          "%";
+
+negation_operator = "-" |
+                    "!" |
+                    "not";
+
+identifier = (letter | "_"), {letter | digit | "_"};
+
+literal = int_literal |
+          float_literal |
+          boolean_literal |
+          string_literal;
+
+boolean_literal = "true" |
+                  "false";
+digit = "0" |
+        non_zero_digit;
+
+non_zero_digit = "1".."9";
+
+int_literal = "0" |
+              non_zero_digit, {digit};
+
+float_literal = int_literal, ".", digit, {digit};
+
+letter = "a".."z" | "A".."Z";
+
+string_literal = "\"".."\"";
 ```
 
-## Integrate with your tools
+### Obsługa błędów
+W przypadku napotkania błędu podczas pracy lexera/parsera/interpretera, error manager agreguje i dzieli błędy na krytyczne i niekrytyczne. 
+#### Lekser
+Przykładem błędu leksykalnego jest:
+- InvalidCharacter - błąd występujący, gdy identifikator lub literał zawiera znaki inne niż dozwolone np. var$ jako nazwa zmiennej
+- UnknownToken - token jest nierozpozwnawany
+- UnterminatedLiteral - brak zamknięcia dla stringa lub komentarza
+#### Parser
+Przykładem błędu parsera jest:
+- UnexpectedToken - błąd występujacy, gdy tokeny są w niepoprawnej kolejności względem przyjętej gramatyki
+- UnmatchedParentheses - występuje w przypadku braku zamknięcia `(` i `{`
+- MissingSemicolon - brak średnika na końcu wyrażenia
+#### Interpreter
+- UndefinedVariable - brak definicji zmiennej
+- IncompatibleTypes - błąd występujący w przypadku próby wykonania operacji na różnych typach np. `2*"text"`
+- DivisionByZero - występuje w przypadku dzielenia przez 0
 
-- [ ] [Set up project integrations](https://gitlab-stud.elka.pw.edu.pl/TKOM_25L_PG/Michal_Krzyzanowski/tkom_interpreter/-/settings/integrations)
+#### Przykładowe komunikaty o błędzie
+```
+InvalidCharacter in line 5, column 34;
+```
+```
+UnexpectedToken in line 8, column 22;
+```
 
-## Collaborate with your team
+### Struktura projektu  
 
-- [ ] [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-- [ ] [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-- [ ] [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-- [ ] [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-- [ ] [Set auto-merge](https://docs.gitlab.com/ee/user/project/merge_requests/merge_when_pipeline_succeeds.html)
+#### Analizator leksykalny - Lexer  
+Analizator leksykalny jest odpowiedzialny za przetworzenie kodu źródłowego na sekwencję tokenów. Przetwarza strumień danych znak po znaku, zwracając odpowiednie tokeny.  
 
-## Test and Deploy
+#### Analizator składniowy - Parser  
+Analizator składniowy ma za zadanie sprawdzić, czy sekwencja tokenów jest zgodna z gramatyką języka programowania. Gramatyka określa zasady składniowe języka, takie jak kolejność tokenów i ich struktura.  
 
-Use the built-in continuous integration in GitLab.
+#### Interpreter  
+Wykonuje kod zgodnie z regułami języka programowania. Interpretuje i wykonuje instrukcje jedna po drugiej.  
 
-- [ ] [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/)
-- [ ] [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-- [ ] [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-- [ ] [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-- [ ] [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
+#### Error Manager  
+Agreguje i dzieli błędy na krytyczne i niekrytyczne. W momencie napotkania błędu krytycznego podnosi wyjątek, który będzie obsłużony na zewnątrz. Natomiast gdy błąd jest niekrytyczny, użytkownik otrzyma informację o jego wystąpieniu, jednak program może nadal działać poprawnie.  
 
-***
+#### Sposób komunikacji pomiędzy elementami  
+Interpreter tworzy instancję parsera i za pomocą odpowiedniej metody pobiera od niego drzewo AST wygenerowane przez parser. Parser tworzy instancję lexera i wywołuje jego metodę w celu otrzymania kolejnego tokena, na podstawie którego na bieżąco generuje drzewo AST. Każdy element bezpośrednio komunikuje się z Error Managerem, przekazując mu błędy do obsługi.  
 
-# Editing this README
+### Testowanie  
+Każdy z modułów jest testowany oddzielnie przy pomocy biblioteki `pytest`. Testy są podzielone na dwa typy:  
+- **Testy jednostkowe** – dotyczą poszczególnych funkcji,  
+- **Testy integracyjne** – sprawdzają połączenia między elementami.  
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
+### Sposób uruchomienia  
+Interpreter będzie uruchamiany z poziomu linii poleceń, przy czym należy podać opcję oznaczającą typ źródła kodu oraz jego ścieżkę, np.:  
 
-## Suggestions for a good README
-
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
-
-## Name
-Choose a self-explaining name for your project.
-
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
-
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
-
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
-
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
-
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
-
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
-
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
-
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
-
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
-
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
-
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
-
-## License
-For open source projects, say how it is licensed.
-
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+```bash
+python interpreter.py -f ./source.xD
+```
