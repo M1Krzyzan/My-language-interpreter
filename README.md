@@ -175,7 +175,7 @@ int x = 5; # Komentarz jednoliniowy
 ### Formalna specyfikacja i składnia (EBNF)
 ```ebnf
 
-program = {function_definition | variable_declaration | exception_definition};
+program = {function_definition | exception_definition};
 
 function_declaration = function_return_type, identifier, "(", parameters, ")", statement_block;
 
@@ -186,11 +186,9 @@ parameter = simple_type, identifier;
 statement = if_statement |
             while_statement |
             loop_control_statement |
-            variable_declaration |
-            value_assigment |
-            function_call |
+            value_assigment_or_call |
             return_statement |
-            catch_statement;
+            try_catch_statement;
 
 statement_block = "{", {statement}, "}";
 
@@ -200,23 +198,19 @@ if_statement = "if", "(", expression, ")", statement_block,
 
 exception_throw = "throw", identifier, ";";
 
-exception_definition = "exception", identifier, "{", {attribute_definition}, "}";
+exception_definition = "exception", identifier,"(", parameters, ")", "{", {attribute_definition}, "}";
 
-attribute_definition = identifier, ":", variable_declaration;
+attribute_definition = identifier, ":", expression;
           
 while_statement = "while", "(", expression, ")", statement_block;
 
 loop_control_statement = ("break" | "continue"), ";";
 
-variable_declaration = simple_type, identifier, ["=", expression], {identifier, ["=", expression]}, ";";
-
-value_assigment = identifier, "=", expression, ";";
-
-function_call = identifier, "(", function_arguments, ")";
+value_assigment_or_call = identifier, ("=", expression | "(", function_arguments, ")") ";";
 
 function_arguments = [expression, {",", expression}];
 
-return_statement = "return", expression, ";";
+return_statement = "return", [expression], ";";
 
 try_catch_statement = "try", statement_block, catch_statement, {catch_statement};
 
@@ -232,16 +226,17 @@ relational_expression = additive_expression, [relational_operator, additive_expr
 
 additive_expression = multiplicative_expression, {additive_operator, multiplicative_expression};
 
-multiplicative_expression = negated_expression, {multiplicative_operator, negated_basic_expression};
+multiplicative_expression = casted_basic_expression, {multiplicative_operator, casted_basic_expression};
 
-negated_expression = [negation_operator], casted_basic_expression;
+negated_expression = [negation_operator], basic_expression;
 
-casted_basic_expression = basic_expression, ["to", simple_type];
+casted_basic_expression = negated_expression, ["to", simple_type];
 
-basic_expression = identifier |
-                   literal |
+call_or_atribute_or_var = identifier, ["(", function_arguments, ")" | ".", identifier ];
+
+basic_expression = literal |
                    "(", expression, ")" |
-                   function_call;
+                   call_or_atribute_or_var;
 
 function_return_type = simple_type |
                        "void";
@@ -251,11 +246,9 @@ simple_type = "int" |
               "string" |
               "bool";
 
-or_operator = "||" |
-              "or";
+or_operator = "or";
 
-and_operator = "&&" |
-               "and";
+and_operator = "and";
 
 relational_operator = "==" |
                       "!=" |
