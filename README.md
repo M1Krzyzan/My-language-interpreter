@@ -56,11 +56,10 @@
 ### Przykłady kodu
 ##### Deklaracje zmiennych i operacje na nich
 ```
-int x = 5*2+1-(4+2);
-int y = 2*x;
-int z = quad(x);
+x = 5*2+1-(4+2);
+y = 2*x;
+z = quad(x);
 
-float a,b;
 a = x to float;
 b = quad(x) to float;
 
@@ -69,7 +68,7 @@ string d = "Lorem" + " ipsum" + " dolor";
 string e = d + a to string;
 
 bool f = true;
-bool g = c == d && c != e
+bool g = c == d and c != e
 ```
 #### Deklaracje funkcji
 ```
@@ -102,8 +101,8 @@ int read_number(){
   return input() to int;
 }
 
-int number_1 = read_number();
-int number_2 = read_number();
+number_1 = read_number();
+number_2 = read_number();
 
 float result = number_1 / number_2;
 print(number_1 to string + "/" + number_2 to string + " = " + result to string + "\n");
@@ -151,7 +150,7 @@ exception WrongNumberOfSidesError {
 void main(){
   try{
     print("Enter number of sides of polygon: ");
-    int n = input() to int;
+    n = input() to int;
     if(n < 3){
       throw WrongNumberOfSidesError(8,n);
     }
