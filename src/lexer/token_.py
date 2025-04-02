@@ -50,6 +50,7 @@ class TokenType(Enum):
     FLOAT_LITERAL = auto()
     EOF = auto()
 
+
 class Token:
     def __init__(self, type_: TokenType, value: str = "", position: int = 0):
         self.type = type_
