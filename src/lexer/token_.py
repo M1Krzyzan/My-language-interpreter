@@ -1,5 +1,7 @@
 from enum import Enum, auto
-from typing import Tuple, Optional
+from typing import Optional, Union
+
+from src.lexer.position import Position
 
 
 class TokenType(Enum):
@@ -25,6 +27,7 @@ class TokenType(Enum):
     LEFT_CURLY_BRACKET = auto()
     RIGHT_CURLY_BRACKET = auto()
 
+    DOT = auto()
     COMMA = auto()
     COLON = auto()
     SEMICOLON = auto()
@@ -51,7 +54,8 @@ class TokenType(Enum):
     INT_LITERAL = auto()
     FLOAT_LITERAL = auto()
     BOOL_LITERAL = auto()
-    EOF = auto()
+    COMMENT = auto()
+    EOT = auto()
 
 
 class Symbols:
@@ -82,6 +86,7 @@ class Symbols:
         "]": TokenType.RIGHT_SQUARE_BRACKET,
         "{": TokenType.LEFT_CURLY_BRACKET,
         "}": TokenType.RIGHT_CURLY_BRACKET,
+        ".": TokenType.DOT,
         ",": TokenType.COMMA,
         ":": TokenType.COLON,
         ";": TokenType.SEMICOLON,
@@ -102,12 +107,17 @@ class Symbols:
         "!=": TokenType.NOT_EQUAL_OPERATOR
     }
 
+    leads_to_double_char =  ['<', '>', '=', '!']
+
 
 class Token:
-    def __init__(self, type_: TokenType, position: Tuple = (), value: Optional = None):
-        self.type = type_
+    def __init__(self, token_type: TokenType, position: Position, value: Union[str, int, float, bool] = None):
+        self.type = token_type
+        self.position = position
         self.value = value
-        self.position = position  # Can help with debugging
 
     def __repr__(self):
         return f"Token({self.type}, {repr(self.value)}, pos={self.position})"
+
+    def __eq__(self, other):
+        return self.type == other.type and self.value == other.value and self.position == other.position
