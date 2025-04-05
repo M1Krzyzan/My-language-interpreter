@@ -76,7 +76,9 @@ class Symbols:
         "Exception": TokenType.EXCEPTION_KEYWORD,
         "or": TokenType.OR_OPERATOR,
         "and": TokenType.AND_OPERATOR,
-        "not": TokenType.NEGATION_OPERATOR
+        "not": TokenType.NEGATION_OPERATOR,
+        "true": TokenType.BOOL_LITERAL,
+        "false": TokenType.BOOL_LITERAL,
     }
 
     single_char = {

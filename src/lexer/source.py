@@ -21,3 +21,9 @@ class Source:
         self.current_char = self.stream.read(1)
 
         return self.current_char
+
+    def peek_next_char(self):
+        current_index = self.stream.tell()
+        next_char = self.stream.read(1)
+        self.stream.seek(current_index)
+        return next_char
