@@ -1,16 +1,22 @@
+import sys
 from io import StringIO
 from typing import Optional
 
+from src.lexer.position import Position
 from src.lexer.source import Source
 from src.lexer.token_ import TokenType,Token,Symbols
+from src.error_manager.error_manager import ErrorManager
+from src.error_manager.lexer_errors import OverFlowError
 
 BEGIN_COMMENT = '#'
 MAX_COMMENT_LEN = 3000
-MAX_IDENTIFIER_LENGTH = 125
+MAX_IDENTIFIER_LENGTH = 128
 MAX_STRING_LEN = 3000
+
 class Lexer:
-    def __init__(self, source: Source):
+    def __init__(self, source: Source, error_handler: ErrorManager):
         self.source = source
+        self.error_handler = error_handler
         self.current_char = self.source.current_char
         self.current_token_position = None
 
@@ -41,7 +47,7 @@ class Lexer:
 
         while self.current_char != '\n':
             if len(value) > MAX_COMMENT_LEN:
-                raise LexerError("Comment too long", self.current_token_position)
+               self.error_handler.add_error(OverFlowError(self.current_token_position))
             value.append(self.current_char)
             self.current_char = self.source.next_char()
 
@@ -57,7 +63,7 @@ class Lexer:
         self.current_char = self.source.next_char()
 
         while self.current_char.isalnum() or self.current_char == "_":
-            if len(name) > MAX_IDENTIFIER_LENGTH:
+            if len(name) >= MAX_IDENTIFIER_LENGTH:
                 raise LexerError("Identifier too long", self.current_token_position)
             name.append(self.current_char)
             self.current_char = self.source.next_char()
@@ -84,7 +90,7 @@ class Lexer:
 
         while self.current_char != '"' or self.current_char == "":
             if len(value) > MAX_STRING_LEN:
-                raise LexerError("String literal too long", self.current_token_position)
+                self.error_handler.critical_error(OverFlowError(self.current_token_position))
             if self.current_char == '\\':
                 self.current_char = self.source.next_char()
                 self.current_char = self._get_escaped_character()
@@ -109,10 +115,9 @@ class Lexer:
             return Token(TokenType.INT_LITERAL, self.current_token_position, decimal_part)
 
         while self.current_char.isdecimal():
-            try:
-                decimal_part = 10*decimal_part + int(self.current_char)
-            except OverflowError:
-                raise LexerError("Number too large", self.current_token_position)
+            if (sys.maxsize - int(self.current_char)) // 10 < decimal_part:
+                self.error_handler.critical_error(OverFlowError(self.current_token_position))
+            decimal_part = 10*decimal_part + int(self.current_char)
             self.current_char = self.source.next_char()
 
         if self.current_char != '.':
@@ -168,7 +173,13 @@ class Lexer:
 
 
 class LexerError(Exception):
-    pass
+    def __init__(self, message: str, token_position: Position) -> None:
+        self.message = message
+        self.token_position = token_position
+
+    def __str__(self) -> str:
+        return f"LexerError: {self.message}, {self.token_position}"
+
 
 
 if __name__ == "__main__":

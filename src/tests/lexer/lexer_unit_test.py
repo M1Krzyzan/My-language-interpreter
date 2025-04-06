@@ -1,7 +1,11 @@
+import sys
 from io import StringIO
 
 import pytest
-from src.lexer.lexer import Lexer
+
+from src.error_manager.error_manager import ErrorManager
+from src.error_manager.lexer_errors import OverFlowError
+from src.lexer.lexer import Lexer, LexerError
 from src.lexer.position import Position
 from src.lexer.token_ import TokenType,Token
 from src.lexer.source import Source
@@ -42,7 +46,7 @@ from src.lexer.source import Source
     ("==", Token(TokenType.EQUAL_OPERATOR, Position(1, 1))),
     ("!=", Token(TokenType.NOT_EQUAL_OPERATOR, Position(1, 1))),
     ("=", Token(TokenType.ASSIGNMENT, Position(1, 1))),
-    ("x", Token(TokenType.IDENTIFIER, Position(1, 1),"x")),
+    ("xyz_4", Token(TokenType.IDENTIFIER, Position(1, 1),"xyz_4")),
     ('"text\\\\ \\\"\\t\\n"', Token(TokenType.STRING_LITERAL, Position(1, 1),"text\\ \"\t\n")),
     ("356", Token(TokenType.INT_LITERAL, Position(1, 1), 356)),
     ("5.135", Token(TokenType.FLOAT_LITERAL, Position(1, 1), 5.135)),
@@ -83,3 +87,24 @@ def test_position_tracking():
                       Token(TokenType.INT_LITERAL, Position(8, 14), 21),
                       Token(TokenType.SEMICOLON, Position(11, 1)),
                       Token(TokenType.EOT, Position(14, 9))]
+
+def test_should_not_allow_identifiers_longer_than_128_characters():
+    input_code = "x"*129
+    stream = StringIO(input_code)
+    source = Source(stream)
+    lexer = Lexer(source)
+    with pytest.raises(LexerError) as err:
+        lexer.next_token()
+
+    assert str(err.value) == "LexerError: Identifier too long, Line 1, Column 1"
+
+
+def test_should_not_allow_numbers_to_be_too_big():
+    input_code = str(sys.maxsize+1)
+    stream = StringIO(input_code)
+    source = Source(stream)
+    with ErrorManager() as error_handler:
+        lexer = Lexer(source, error_handler)
+        lexer.next_token()
+    assert len(error_handler._errors) == 1
+    assert error_handler._errors[0] == OverFlowError(Position(1,1))
