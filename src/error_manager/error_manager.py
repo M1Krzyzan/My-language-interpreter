@@ -23,7 +23,7 @@ class ErrorManager(AbstractContextManager):
 
     def critical_error(self, error: Error):
         self.add_error(error)
-        return FatalError
+        raise FatalError
 
     def add_error(self, error: Error):
         self._errors.append(error)

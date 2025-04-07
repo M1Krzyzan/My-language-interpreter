@@ -77,8 +77,6 @@ class Symbols:
         "or": TokenType.OR_OPERATOR,
         "and": TokenType.AND_OPERATOR,
         "not": TokenType.NEGATION_OPERATOR,
-        "true": TokenType.BOOL_LITERAL,
-        "false": TokenType.BOOL_LITERAL,
     }
 
     single_char = {
@@ -99,7 +97,7 @@ class Symbols:
         "%": TokenType.MODULO_OPERATOR,
         "<": TokenType.LESS_THAN_OPERATOR,
         ">": TokenType.GREATER_THAN_OPERATOR,
-        "=": TokenType.ASSIGNMENT,
+        "=": TokenType.ASSIGNMENT
     }
 
     double_char = {
@@ -107,6 +105,11 @@ class Symbols:
         ">=": TokenType.GREATER_THAN_OR_EQUAL_OPERATOR,
         "==": TokenType.EQUAL_OPERATOR,
         "!=": TokenType.NOT_EQUAL_OPERATOR
+    }
+
+    boolean_literals = {
+        "true":TokenType.BOOL_LITERAL,
+        "false": TokenType.BOOL_LITERAL
     }
 
     leads_to_double_char =  ['<', '>', '=', '!']

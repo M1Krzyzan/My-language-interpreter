@@ -2,16 +2,24 @@ import sys
 from io import StringIO
 from typing import Optional
 
-from src.lexer.position import Position
 from src.lexer.source import Source
 from src.lexer.token_ import TokenType,Token,Symbols
 from src.error_manager.error_manager import ErrorManager
-from src.error_manager.lexer_errors import OverFlowError
+from src.error_manager.lexer_errors import (
+    OverFlowError,
+    IdentifierTooLongError,
+    UnexpectedEscapeCharacterError,
+    PrecisionTooBigError,
+    UnclosedStringError,
+    StringTooLongError,
+    CommentTooLongError
+)
 
-BEGIN_COMMENT = '#'
 MAX_COMMENT_LEN = 3000
-MAX_IDENTIFIER_LENGTH = 128
 MAX_STRING_LEN = 3000
+MAX_IDENTIFIER_LENGTH = 128
+MAX_PRECISION = 15
+
 
 class Lexer:
     def __init__(self, source: Source, error_handler: ErrorManager):
@@ -45,9 +53,9 @@ class Lexer:
         value = []
         self.current_char = self.source.next_char()
 
-        while self.current_char != '\n':
-            if len(value) > MAX_COMMENT_LEN:
-               self.error_handler.add_error(OverFlowError(self.current_token_position))
+        while self.current_char != '\n' and self.current_char != '':
+            if len(value) >= MAX_COMMENT_LEN:
+               self.error_handler.add_error(CommentTooLongError(self.current_token_position))
             value.append(self.current_char)
             self.current_char = self.source.next_char()
 
@@ -64,13 +72,13 @@ class Lexer:
 
         while self.current_char.isalnum() or self.current_char == "_":
             if len(name) >= MAX_IDENTIFIER_LENGTH:
-                raise LexerError("Identifier too long", self.current_token_position)
+                self.error_handler.add_error(IdentifierTooLongError(self.current_token_position))
             name.append(self.current_char)
             self.current_char = self.source.next_char()
 
         name = "".join(name)
 
-        token_type = Symbols.keywords.get(name, TokenType.IDENTIFIER)
+        token_type = Symbols.boolean_literals.get(name) or Symbols.keywords.get(name, TokenType.IDENTIFIER)
 
         if token_type == TokenType.IDENTIFIER:
             return Token(token_type, self.current_token_position, name)
@@ -89,8 +97,8 @@ class Lexer:
         value = []
 
         while self.current_char != '"' or self.current_char == "":
-            if len(value) > MAX_STRING_LEN:
-                self.error_handler.critical_error(OverFlowError(self.current_token_position))
+            if len(value) >= MAX_STRING_LEN:
+                self.error_handler.critical_error(StringTooLongError(self.current_token_position))
             if self.current_char == '\\':
                 self.current_char = self.source.next_char()
                 self.current_char = self._get_escaped_character()
@@ -98,7 +106,7 @@ class Lexer:
             self.current_char = self.source.next_char()
 
         if self.current_char == "":
-            raise LexerError("Unclosed string literal", self.current_token_position)
+            self.error_handler.add_error(UnclosedStringError(self.current_token_position))
 
         value = "".join(value)
 
@@ -132,15 +140,15 @@ class Lexer:
         number_list = []
 
         while self.current_char.isdecimal():
+            if len(number_list) >= MAX_PRECISION:
+                self.error_handler.critical_error(PrecisionTooBigError(self.current_token_position))
+
             number_list.append(self.current_char)
             self.current_char = self.source.next_char()
 
         fractional_string = "".join(number_list)
 
-        try:
-            fractional_part = int(fractional_string)/10**(len(fractional_string))
-        except OverflowError:
-            raise LexerError("Number too large", self.current_token_position)
+        fractional_part = int(fractional_string)/10**(len(fractional_string))
 
         return Token(TokenType.FLOAT_LITERAL, self.current_token_position, decimal_part+fractional_part)
 
@@ -163,23 +171,11 @@ class Lexer:
             'n': '\n',
             '"': '\"'
         }
-        try:
-            escaped_character = escaped_characters_map[self.current_char]
-        except KeyError:
-            raise LexerError("Invalid escape character", self.current_token_position)
 
-        return escaped_character
+        if escaped_character := escaped_characters_map.get(self.current_char):
+            return escaped_character
 
-
-
-class LexerError(Exception):
-    def __init__(self, message: str, token_position: Position) -> None:
-        self.message = message
-        self.token_position = token_position
-
-    def __str__(self) -> str:
-        return f"LexerError: {self.message}, {self.token_position}"
-
+        self.error_handler.critical_error(UnexpectedEscapeCharacterError(self.current_token_position))
 
 
 if __name__ == "__main__":
