@@ -12,7 +12,8 @@ from src.error_manager.lexer_errors import (
     PrecisionTooBigError,
     UnclosedStringError,
     StringTooLongError,
-    CommentTooLongError
+    CommentTooLongError,
+    UnknownTokenError
 )
 
 MAX_COMMENT_LEN = 3000
@@ -34,13 +35,14 @@ class Lexer:
         self.current_token_position = self.source.current_position.copy()
 
         if self.current_char == '':
-            return Token(TokenType.EOT, self.current_token_position)
+            return Token(TokenType.ETX, self.current_token_position)
 
         return (self._try_build_comment()or
                 self._try_build_keyword_or_identifier() or
                 self._try_build_string_literal() or
                 self._try_build_number_literal() or
-                self._try_build_special_character())
+                self._try_build_special_character() or
+                self._try_build_unknown_token())
 
     def _skip_white_characters(self):
         while self.current_char.isspace():
@@ -96,7 +98,7 @@ class Lexer:
 
         value = []
 
-        while self.current_char != '"' or self.current_char == "":
+        while self.current_char != '"' and self.current_char != "" and self.current_char != chr(3):
             if len(value) >= MAX_STRING_LEN:
                 self.error_handler.critical_error(StringTooLongError(self.current_token_position))
             if self.current_char == '\\':
@@ -105,7 +107,7 @@ class Lexer:
             value.append(self.current_char)
             self.current_char = self.source.next_char()
 
-        if self.current_char == "":
+        if self.current_char == "" or self.current_char == chr(3):
             self.error_handler.add_error(UnclosedStringError(self.current_token_position))
 
         value = "".join(value)
@@ -153,7 +155,7 @@ class Lexer:
         return Token(TokenType.FLOAT_LITERAL, self.current_token_position, decimal_part+fractional_part)
 
     def _try_build_special_character(self) -> Optional[Token]:
-        if not Symbols.single_char.get(self.current_char) and self.current_char!= '!':
+        if not Symbols.single_char.get(self.current_char) and self.current_char != '!':
             return
 
         first_char = self.current_char
@@ -177,6 +179,13 @@ class Lexer:
 
         self.error_handler.critical_error(UnexpectedEscapeCharacterError(self.current_token_position))
 
+    def _try_build_unknown_token(self):
+        self.error_handler.add_error(UnknownTokenError(self.current_token_position))
+        value = self.current_char
+        self.current_char = self.source.next_char()
+        return Token(TokenType.UNKNOWN, self.current_token_position, value)
+
+
 
 if __name__ == "__main__":
     code =(
@@ -187,8 +196,11 @@ int sum(float x, int y){ #COMMENT
     }
 }""")
     code_source = Source(StringIO(code))
-    lexer = Lexer(code_source)
-    token = lexer.next_token()
-    while token.type != TokenType.EOT:
+    with ErrorManager() as error_handler:
+        lexer = Lexer(code_source, error_handler)
         token = lexer.next_token()
-        print(token.type, end=" ")
+        tokens = [token]
+        while token.type != TokenType.ETX:
+            token = lexer.next_token()
+            tokens.append(token)
+            print(token.type, end=" ")

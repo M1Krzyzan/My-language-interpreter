@@ -27,3 +27,7 @@ class UnclosedStringError(Error):
 class PrecisionTooBigError(Error):
     def __repr__(self):
         return f'LexerError: Precision too big in {self.position}'
+
+class UnknownTokenError(Error):
+    def __repr__(self):
+        return f'LexerError: Unknown token in {self.position}'

@@ -1,6 +1,5 @@
 import sys
 from io import StringIO
-
 import pytest
 
 from src.error_manager.error_manager import ErrorManager, FatalError
@@ -9,7 +8,9 @@ from src.error_manager.lexer_errors import (
     IdentifierTooLongError,
     StringTooLongError,
     UnexpectedEscapeCharacterError,
-    PrecisionTooBigError, CommentTooLongError
+    PrecisionTooBigError,
+    CommentTooLongError,
+    UnknownTokenError, UnclosedStringError
 )
 from src.lexer.lexer import Lexer
 from src.lexer.position import Position
@@ -20,12 +21,10 @@ from src.lexer.token_ import TokenType, Token, Symbols
 @pytest.mark.parametrize(
     "input_text, expected_tokens", [
         (text, Token(token_type, Position(1, 1)))
-        for text, token_type in {**Symbols.keywords,
-                                 **Symbols.single_char,
-                                 **Symbols.double_char}.items()
+        for text, token_type in Symbols.keywords.items()
     ]
 )
-def test_keywords_and_operators_tokens(input_text, expected_tokens):
+def test_keyword_tokens(input_text, expected_tokens):
     stream = StringIO(input_text)
     source = Source(stream)
     with ErrorManager() as error_handler:
@@ -33,6 +32,19 @@ def test_keywords_and_operators_tokens(input_text, expected_tokens):
         token = lexer.next_token()
     assert token == expected_tokens
 
+@pytest.mark.parametrize(
+    "input_text, expected_tokens", [
+        (text, Token(token_type, Position(1, 1)))
+        for text, token_type in {**Symbols.single_char, **Symbols.double_char}.items()
+    ]
+)
+def test_operator_tokens(input_text, expected_tokens):
+    stream = StringIO(input_text)
+    source = Source(stream)
+    with ErrorManager() as error_handler:
+        lexer = Lexer(source, error_handler)
+        token = lexer.next_token()
+    assert token == expected_tokens
 
 @pytest.mark.parametrize("input_text, expected_tokens", [
     (name, Token(TokenType.IDENTIFIER, Position(1, 1), name))
@@ -48,7 +60,7 @@ def test_positive_build_identifier_token(input_text, expected_tokens):
     assert token == expected_tokens
 
 
-@pytest.mark.parametrize("input_text", [f"{"x" * 129}"])
+@pytest.mark.parametrize("input_text", ["x" * 129])
 def test_should_not_allow_identifiers_to_be_too_long(input_text):
     stream = StringIO(input_text)
     source = Source(stream)
@@ -80,7 +92,7 @@ def test_positive_string_literal_token(input_text, expected_tokens):
     assert token == expected_tokens
 
 
-@pytest.mark.parametrize("input_text", [f"\"{"x" * 3001}\""])
+@pytest.mark.parametrize("input_text", ["\""+"x" * 3001 + "\""])
 def test_should_not_allow_string_literals_to_be_too_long(input_text):
     stream = StringIO(input_text)
     source = Source(stream)
@@ -92,6 +104,20 @@ def test_should_not_allow_string_literals_to_be_too_long(input_text):
         assert len(error_handler._errors) == 1
         assert error_handler._errors[0] == StringTooLongError(Position(1, 1))
 
+@pytest.mark.parametrize("input_text, expected_token", [
+    ("\"text",Token(TokenType.STRING_LITERAL,Position(1,1),"text"))
+])
+def test_should_print_error_for_unclosed_string_literals(input_text, expected_token):
+    stream = StringIO(input_text)
+    source = Source(stream)
+
+    with ErrorManager() as error_handler:
+        lexer = Lexer(source, error_handler)
+        token = lexer.next_token()
+
+        assert len(error_handler._errors) == 1
+        assert error_handler._errors[0] == UnclosedStringError(Position(1, 1))
+        assert token == expected_token
 
 @pytest.mark.parametrize("input_text", ["\"\\n\\t\\a\""])
 def test_should_not_allow_unknown_escaped_characters(input_text):
@@ -104,11 +130,6 @@ def test_should_not_allow_unknown_escaped_characters(input_text):
         assert len(error_handler._errors) == 1
         assert error_handler._errors[0] == UnexpectedEscapeCharacterError(Position(1, 1))
 
-
-# @pytest.mark.parametrize("input_text, expected_tokens", [
-#     ("true", Token(TokenType.BOOL_LITERAL, Position(1, 1), True)),
-#     ("# this is comment\n", Token(TokenType.COMMENT, Position(1, 1), " this is comment")),
-# ])
 @pytest.mark.parametrize("input_text, expected_tokens", [
     (number_in, Token(TokenType.INT_LITERAL, Position(1, 1), number_value))
     for number_in, number_value in {
@@ -158,7 +179,7 @@ def test_positive_float_literal_token(input_text, expected_tokens):
         assert token == expected_tokens
 
 
-@pytest.mark.parametrize("input_text", [f"0.{"0" * 15}9"])
+@pytest.mark.parametrize("input_text", ["0."+"0" * 15+"9"])
 def test_should_not_allow_numbers_to_be_too_big(input_text):
     stream = StringIO(input_text)
     source = Source(stream)
@@ -196,7 +217,7 @@ def test_positive_build_comment_token(input_text, expected_tokens):
         token = lexer.next_token()
         assert token == expected_tokens
 
-@pytest.mark.parametrize("input_text", [f"#{"a"*3001}"])
+@pytest.mark.parametrize("input_text", ["#"+"a"*3001])
 def test_should_not_allow_numbers_to_be_too_big(input_text):
     stream = StringIO(input_text)
     source = Source(stream)
@@ -208,21 +229,64 @@ def test_should_not_allow_numbers_to_be_too_big(input_text):
         assert len(error_handler._errors) == 1
         assert error_handler._errors[0] == CommentTooLongError(Position(1, 1))
 
-@pytest.mark.parametrize("input_text", [
-    """
-                
-          x
-        
-        
-       =
-          
-             21
-        \t
-        \r\n;
-        \n
-    """
+@pytest.mark.parametrize("input_text, expected_token", [
+    ("@var", Token(TokenType.UNKNOWN, Position(1, 1), "@")),
+    ("$6345", Token(TokenType.UNKNOWN, Position(1, 1), "$")),
+    ("var@", Token(TokenType.UNKNOWN, Position(1, 4), "@")),
+    ("635$", Token(TokenType.UNKNOWN, Position(1, 4), "$"))
 ])
-def test_position_tracking(input_text):
+def test_build_unknown_token(input_text, expected_token):
+    stream = StringIO(input_text)
+    source = Source(stream)
+    with ErrorManager() as error_handler:
+        lexer = Lexer(source, error_handler)
+        token = lexer.next_token()
+        while token.type != TokenType.UNKNOWN:
+            token = lexer.next_token()
+
+        assert len(error_handler._errors) == 1
+        assert error_handler._errors[0] == UnknownTokenError(expected_token.position)
+        assert token == expected_token
+
+@pytest.mark.parametrize("input_text, expected_token", [
+    ("", Token(TokenType.ETX, Position(1, 1))),
+    ("\n", Token(TokenType.ETX, Position(2, 1))),
+    ("text ", Token(TokenType.ETX, Position(1, 6)))
+])
+def test_build_end_of_text_token(input_text, expected_token):
+    stream = StringIO(input_text)
+    source = Source(stream)
+    with ErrorManager() as error_handler:
+        lexer = Lexer(source, error_handler)
+        token = lexer.next_token()
+        while token.type != TokenType.ETX:
+            token = lexer.next_token()
+
+        assert token == expected_token
+
+@pytest.mark.parametrize("input_text, expected_token", [
+    ("text", Token(TokenType.ETX, Position(1, 5)))
+])
+def test_should_always_give_end_of_text_token_after_end(input_text, expected_token):
+    stream = StringIO(input_text)
+    source = Source(stream)
+    with ErrorManager() as error_handler:
+        lexer = Lexer(source, error_handler)
+        lexer.next_token() # Skip string literal token
+        for _ in range(10):
+            token = lexer.next_token()
+            assert token == expected_token
+
+@pytest.mark.parametrize("input_text, expected_tokens", [
+    ("\n\n          x\n\n\n       =\n\n             21\n\t\n\r\n;\n\n\n    ", [
+        Token(TokenType.IDENTIFIER, Position(3, 11), "x"),
+        Token(TokenType.ASSIGNMENT, Position(6, 8)),
+        Token(TokenType.INT_LITERAL, Position(8, 14), 21),
+        Token(TokenType.SEMICOLON, Position(11, 1)),
+        Token(TokenType.ETX, Position(14, 5))
+    ])
+])
+def test_position_tracking(input_text, expected_tokens):
     stream = StringIO(input_text)
     source = Source(stream)
 
@@ -230,14 +294,9 @@ def test_position_tracking(input_text):
         lexer = Lexer(source, error_handler)
         token = lexer.next_token()
         tokens = [token]
-        while token.type != TokenType.EOT:
+        while token.type != TokenType.ETX:
             token = lexer.next_token()
             tokens.append(token)
 
-        assert tokens == [
-            Token(TokenType.IDENTIFIER, Position(3, 11), "x"),
-            Token(TokenType.ASSIGNMENT, Position(6, 8)),
-            Token(TokenType.INT_LITERAL, Position(8, 14), 21),
-            Token(TokenType.SEMICOLON, Position(11, 1)),
-            Token(TokenType.EOT, Position(14, 5))
-        ]
+        assert len(tokens) == len(expected_tokens)
+        assert tokens == expected_tokens

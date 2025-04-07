@@ -55,7 +55,8 @@ class TokenType(Enum):
     FLOAT_LITERAL = auto()
     BOOL_LITERAL = auto()
     COMMENT = auto()
-    EOT = auto()
+    UNKNOWN = auto()
+    ETX = auto()
 
 
 class Symbols:
@@ -97,7 +98,8 @@ class Symbols:
         "%": TokenType.MODULO_OPERATOR,
         "<": TokenType.LESS_THAN_OPERATOR,
         ">": TokenType.GREATER_THAN_OPERATOR,
-        "=": TokenType.ASSIGNMENT
+        "=": TokenType.ASSIGNMENT,
+        "!": TokenType.NEGATION_OPERATOR
     }
 
     double_char = {
