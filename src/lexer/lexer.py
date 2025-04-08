@@ -66,7 +66,7 @@ class Lexer:
 
 
     def _try_build_keyword_or_identifier(self) -> Optional[Token]:
-        if not self.current_char.isalpha() and self.current_char != '_':
+        if not (self.current_char.isalpha() or self.current_char == "_"):
             return None
 
         name = [self.current_char]
@@ -78,14 +78,14 @@ class Lexer:
             name.append(self.current_char)
             self.current_char = self.source.next_char()
 
-        name = "".join(name)
+        name_str = "".join(name)
 
-        token_type = Symbols.boolean_literals.get(name) or Symbols.keywords.get(name, TokenType.IDENTIFIER)
+        token_type = Symbols.boolean_literals.get(name) or Symbols.keywords.get(name_str, TokenType.IDENTIFIER)
 
         if token_type == TokenType.IDENTIFIER:
-            return Token(token_type, self.current_token_position, name)
+            return Token(token_type, self.current_token_position, name_str)
         elif token_type == TokenType.BOOL_LITERAL:
-            value = True if name == "true" else False
+            value = name_str == "true"
             return Token(token_type, self.current_token_position, value)
 
         return Token(token_type,self.current_token_position)
@@ -114,31 +114,43 @@ class Lexer:
 
         return Token(TokenType.STRING_LITERAL, self.current_token_position, value)
 
-
     def _try_build_number_literal(self) -> Optional[Token]:
         if not self.current_char.isdecimal():
             return
 
-        decimal_part = int(self.current_char)
-        self.current_char = self.source.next_char()
-        if decimal_part == 0 and self.current_char != '.':
-            return Token(TokenType.INT_LITERAL, self.current_token_position, decimal_part)
-
-        while self.current_char.isdecimal():
-            if (sys.maxsize - int(self.current_char)) // 10 < decimal_part:
-                self.error_handler.critical_error(OverFlowError(self.current_token_position))
-            decimal_part = 10*decimal_part + int(self.current_char)
-            self.current_char = self.source.next_char()
+        decimal_part = self._parse_integer_part()
 
         if self.current_char != '.':
             return Token(TokenType.INT_LITERAL, self.current_token_position, decimal_part)
 
-        next_character = self.source.peek_next_char()
-        if not next_character.isdecimal():
+        fractional_part = self._parse_fractional_part()
+        if fractional_part is None:
             return Token(TokenType.INT_LITERAL, self.current_token_position, decimal_part)
 
+        return Token(TokenType.FLOAT_LITERAL, self.current_token_position, decimal_part + fractional_part)
+
+    def _parse_integer_part(self) -> int:
+        decimal_part = int(self.current_char)
         self.current_char = self.source.next_char()
 
+        if decimal_part == 0 and self.current_char != '.':
+            return 0
+
+        while self.current_char.isdecimal():
+            if (sys.maxsize - int(self.current_char)) // 10 < decimal_part:
+                self.error_handler.critical_error(OverFlowError(self.current_token_position))
+
+            decimal_part = 10 * decimal_part + int(self.current_char)
+            self.current_char = self.source.next_char()
+
+        return decimal_part
+
+    def _parse_fractional_part(self) -> Optional[float]:
+        next_character = self.source.peek_next_char()
+        if not next_character.isdecimal():
+            return None
+
+        self.current_char = self.source.next_char()
         number_list = []
 
         while self.current_char.isdecimal():
@@ -149,10 +161,7 @@ class Lexer:
             self.current_char = self.source.next_char()
 
         fractional_string = "".join(number_list)
-
-        fractional_part = int(fractional_string)/10**(len(fractional_string))
-
-        return Token(TokenType.FLOAT_LITERAL, self.current_token_position, decimal_part+fractional_part)
+        return int(fractional_string) / 10 ** len(fractional_string)
 
     def _try_build_special_character(self) -> Optional[Token]:
         if not Symbols.single_char.get(self.current_char) and self.current_char != '!':
@@ -196,8 +205,8 @@ int sum(float x, int y){ #COMMENT
     }
 }""")
     code_source = Source(StringIO(code))
-    with ErrorManager() as error_handler:
-        lexer = Lexer(code_source, error_handler)
+    with ErrorManager() as error_manager:
+        lexer = Lexer(code_source, error_manager)
         token = lexer.next_token()
         tokens = [token]
         while token.type != TokenType.ETX:

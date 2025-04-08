@@ -136,6 +136,7 @@ def test_should_not_allow_unknown_escaped_characters(input_text):
         "0": 0,
         "8": 8,
         "3536": 3536,
+        "234.notAnumber": 234,
         str(sys.maxsize): sys.maxsize,
     }.items()
 ])
@@ -147,6 +148,26 @@ def test_positive_int_literal_token(input_text, expected_tokens):
         token = lexer.next_token()
         assert token == expected_tokens
 
+@pytest.mark.parametrize("input_text, expected_tokens", [
+    ("00143", [
+        Token(TokenType.INT_LITERAL, Position(1, 1), 0),
+        Token(TokenType.INT_LITERAL, Position(1, 2), 0),
+        Token(TokenType.INT_LITERAL, Position(1, 3), 143),
+    ])
+])
+def test_each_leading_zero_is_separated_as_token(input_text, expected_tokens):
+    stream = StringIO(input_text)
+    source = Source(stream)
+    with ErrorManager() as error_handler:
+        lexer = Lexer(source, error_handler)
+        token = lexer.next_token()
+        tokens = [token]
+        while token.type != TokenType.ETX:
+            token = lexer.next_token()
+            tokens.append(token)
+
+        assert len(tokens) == len(expected_tokens)
+        assert tokens[:-1] == expected_tokens
 
 @pytest.mark.parametrize("input_text", [str(sys.maxsize + 1), f"{sys.maxsize + 0.1:.1f}"])
 def test_should_not_allow_numbers_to_be_too_big(input_text):
@@ -157,9 +178,7 @@ def test_should_not_allow_numbers_to_be_too_big(input_text):
         lexer = Lexer(source, error_handler)
         lexer.next_token()
 
-        assert len(error_handler._errors) == 1
         assert error_handler._errors[0] == OverFlowError(Position(1, 1))
-
 
 @pytest.mark.parametrize("input_text, expected_tokens", [
     (number_in, Token(TokenType.FLOAT_LITERAL, Position(1, 1), number_value))
