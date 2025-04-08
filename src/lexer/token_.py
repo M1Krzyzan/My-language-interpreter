@@ -1,5 +1,5 @@
 from enum import Enum, auto
-from typing import Optional, Union
+from typing import Union
 
 from src.lexer.position import Position
 

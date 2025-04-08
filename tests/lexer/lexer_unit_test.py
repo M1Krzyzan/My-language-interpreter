@@ -68,7 +68,7 @@ def test_should_not_allow_identifiers_to_be_too_long(input_text):
     stream = StringIO(input_text)
     source = Source(stream)
 
-    with ErrorManager() as error_handler:
+    with pytest.raises(FatalError), ErrorManager() as error_handler:
         lexer = Lexer(source, error_handler)
         lexer.next_token()
 

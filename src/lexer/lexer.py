@@ -26,7 +26,7 @@ class Lexer:
     def __init__(self, source: Source, error_handler: ErrorManager):
         self.source = source
         self.error_handler = error_handler
-        self.current_char = self.source.current_char
+        self.current_char = self.source.next_char()
         self.current_token_position = None
 
     def next_token(self):
@@ -34,7 +34,7 @@ class Lexer:
 
         self.current_token_position = self.source.current_position.copy()
 
-        if self.current_char == '':
+        if self.current_char == chr(3):
             return Token(TokenType.ETX, self.current_token_position)
 
         return (self._try_build_comment() or
@@ -55,7 +55,7 @@ class Lexer:
         value = []
         self.current_char = self.source.next_char()
 
-        while self.current_char != '\n' and self.current_char != '':
+        while self.current_char != '\n' and self.current_char != chr(3):
             if len(value) >= MAX_COMMENT_LEN:
                 self.error_handler.add_error(CommentTooLongError(self.current_token_position))
             value.append(self.current_char)
@@ -73,7 +73,7 @@ class Lexer:
 
         while self.current_char.isalnum() or self.current_char == "_":
             if len(name) >= MAX_IDENTIFIER_LENGTH:
-                self.error_handler.add_error(IdentifierTooLongError(self.current_token_position))
+                self.error_handler.critical_error(IdentifierTooLongError(self.current_token_position))
             name.append(self.current_char)
             self.current_char = self.source.next_char()
 

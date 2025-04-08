@@ -28,6 +28,3 @@ class ErrorManager(AbstractContextManager):
 
     def add_error(self, error: Error):
         self._errors.append(error)
-        if len(self._errors) > 100:
-            return False
-        return True
