@@ -110,11 +110,11 @@ class Symbols:
     }
 
     boolean_literals = {
-        "true":TokenType.BOOL_LITERAL,
+        "true": TokenType.BOOL_LITERAL,
         "false": TokenType.BOOL_LITERAL
     }
 
-    leads_to_double_char =  ['<', '>', '=', '!']
+    leads_to_double_char = ['<', '>', '=', '!']
 
 
 class Token:

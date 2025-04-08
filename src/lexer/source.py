@@ -4,7 +4,7 @@ from src.lexer.position import Position
 
 
 class Source:
-    def __init__(self, stream: TextIOWrapper|StringIO):
+    def __init__(self, stream: TextIOWrapper | StringIO):
         self.stream = stream
         self.current_position = Position(line=1, column=1)
         self.current_char = self.stream.read(1)

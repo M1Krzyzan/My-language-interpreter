@@ -8,6 +8,7 @@ from src.lexer.position import Position
 class Error:
     position: Position
 
+
 class FatalError(Exception):
     ...
 

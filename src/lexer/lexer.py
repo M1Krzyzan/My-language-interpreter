@@ -3,14 +3,14 @@ from io import StringIO
 from typing import Optional
 
 from src.lexer.source import Source
-from src.lexer.token_ import TokenType,Token,Symbols
+from src.lexer.token_ import TokenType, Token, Symbols
 from src.error_manager.error_manager import ErrorManager
 from src.error_manager.lexer_errors import (
     OverFlowError,
     IdentifierTooLongError,
     UnexpectedEscapeCharacterError,
-    PrecisionTooBigError,
-    UnclosedStringError,
+    PrecisionTooHighError,
+    UnterminatedStringLiteralError,
     StringTooLongError,
     CommentTooLongError,
     UnknownTokenError
@@ -37,7 +37,7 @@ class Lexer:
         if self.current_char == '':
             return Token(TokenType.ETX, self.current_token_position)
 
-        return (self._try_build_comment()or
+        return (self._try_build_comment() or
                 self._try_build_keyword_or_identifier() or
                 self._try_build_string_literal() or
                 self._try_build_number_literal() or
@@ -57,13 +57,12 @@ class Lexer:
 
         while self.current_char != '\n' and self.current_char != '':
             if len(value) >= MAX_COMMENT_LEN:
-               self.error_handler.add_error(CommentTooLongError(self.current_token_position))
+                self.error_handler.add_error(CommentTooLongError(self.current_token_position))
             value.append(self.current_char)
             self.current_char = self.source.next_char()
 
         value = "".join(value)
         return Token(TokenType.COMMENT, self.current_token_position, value)
-
 
     def _try_build_keyword_or_identifier(self) -> Optional[Token]:
         if not (self.current_char.isalpha() or self.current_char == "_"):
@@ -80,7 +79,7 @@ class Lexer:
 
         name_str = "".join(name)
 
-        token_type = Symbols.boolean_literals.get(name) or Symbols.keywords.get(name_str, TokenType.IDENTIFIER)
+        token_type = Symbols.boolean_literals.get(name_str) or Symbols.keywords.get(name_str, TokenType.IDENTIFIER)
 
         if token_type == TokenType.IDENTIFIER:
             return Token(token_type, self.current_token_position, name_str)
@@ -88,7 +87,7 @@ class Lexer:
             value = name_str == "true"
             return Token(token_type, self.current_token_position, value)
 
-        return Token(token_type,self.current_token_position)
+        return Token(token_type, self.current_token_position)
 
     def _try_build_string_literal(self) -> Optional[Token]:
         if self.current_char != '"':
@@ -108,7 +107,7 @@ class Lexer:
             self.current_char = self.source.next_char()
 
         if self.current_char == "" or self.current_char == chr(3):
-            self.error_handler.add_error(UnclosedStringError(self.current_token_position))
+            self.error_handler.add_error(UnterminatedStringLiteralError(self.current_token_position))
 
         value = "".join(value)
 
@@ -155,7 +154,7 @@ class Lexer:
 
         while self.current_char.isdecimal():
             if len(number_list) >= MAX_PRECISION:
-                self.error_handler.critical_error(PrecisionTooBigError(self.current_token_position))
+                self.error_handler.critical_error(PrecisionTooHighError(self.current_token_position))
 
             number_list.append(self.current_char)
             self.current_char = self.source.next_char()
@@ -195,15 +194,14 @@ class Lexer:
         return Token(TokenType.UNKNOWN, self.current_token_position, value)
 
 
-
 if __name__ == "__main__":
-    code =(
-"""#COMMENT
-int sum(float x, int y){ #COMMENT 
-    if (x =! y){
-        return x to int + y;
-    }
-}""")
+    code = (
+        """#COMMENT
+        int sum(float x, int y){ #COMMENT 
+            if (x =! y){
+                return x to int + y;
+            }
+        }""")
     code_source = Source(StringIO(code))
     with ErrorManager() as error_manager:
         lexer = Lexer(code_source, error_manager)
