@@ -83,7 +83,7 @@ class Lexer:
 
         if token_type == TokenType.IDENTIFIER:
             return Token(token_type, self.current_token_position, name_str)
-        elif token_type == TokenType.BOOL_LITERAL:
+        elif token_type == TokenType.BOOLEAN_LITERAL:
             value = name_str == "true"
             return Token(token_type, self.current_token_position, value)
 
@@ -100,9 +100,11 @@ class Lexer:
         while self.current_char != '"' and self.current_char != "" and self.current_char != chr(3):
             if len(value) >= MAX_STRING_LEN:
                 self.error_handler.critical_error(StringTooLongError(self.current_token_position))
+
             if self.current_char == '\\':
                 self.current_char = self.source.next_char()
                 self.current_char = self._get_escaped_character()
+
             value.append(self.current_char)
             self.current_char = self.source.next_char()
 
@@ -163,7 +165,7 @@ class Lexer:
         return int(fractional_string) / 10 ** len(fractional_string)
 
     def _try_build_special_character(self) -> Optional[Token]:
-        if not Symbols.single_char.get(self.current_char) and self.current_char != '!':
+        if not Symbols.single_char.get(self.current_char):
             return
 
         first_char = self.current_char

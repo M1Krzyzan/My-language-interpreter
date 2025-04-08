@@ -53,7 +53,7 @@ class TokenType(Enum):
     STRING_LITERAL = auto()
     INT_LITERAL = auto()
     FLOAT_LITERAL = auto()
-    BOOL_LITERAL = auto()
+    BOOLEAN_LITERAL = auto()
     COMMENT = auto()
     UNKNOWN = auto()
     ETX = auto()
@@ -110,8 +110,8 @@ class Symbols:
     }
 
     boolean_literals = {
-        "true": TokenType.BOOL_LITERAL,
-        "false": TokenType.BOOL_LITERAL
+        "true": TokenType.BOOLEAN_LITERAL,
+        "false": TokenType.BOOLEAN_LITERAL
     }
 
     leads_to_double_char = ['<', '>', '=', '!']

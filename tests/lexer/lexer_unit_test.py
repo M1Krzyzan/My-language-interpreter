@@ -25,7 +25,7 @@ from src.lexer.token_ import TokenType, Token, Symbols
         for text, token_type in Symbols.keywords.items()
     ]
 )
-def test_keyword_tokens(input_text, expected_tokens):
+def test_build_keyword_tokens(input_text, expected_tokens):
     stream = StringIO(input_text)
     source = Source(stream)
     with ErrorManager() as error_handler:
@@ -40,7 +40,7 @@ def test_keyword_tokens(input_text, expected_tokens):
         for text, token_type in {**Symbols.single_char, **Symbols.double_char}.items()
     ]
 )
-def test_operator_tokens(input_text, expected_tokens):
+def test_build_operator_tokens(input_text, expected_tokens):
     stream = StringIO(input_text)
     source = Source(stream)
     with ErrorManager() as error_handler:
@@ -53,7 +53,7 @@ def test_operator_tokens(input_text, expected_tokens):
     (name, Token(TokenType.IDENTIFIER, Position(1, 1), name))
     for name in ["x", "xyz", "_xyz", "_x_y_z", "x33", "x_3_", "_1", "__", "intx", "for_"]
 ])
-def test_positive_build_identifier_token(input_text, expected_tokens):
+def test_build_identifier_token(input_text, expected_tokens):
     stream = StringIO(input_text)
     source = Source(stream)
     with ErrorManager() as error_handler:
@@ -86,7 +86,7 @@ def test_should_not_allow_identifiers_to_be_too_long(input_text):
         "\"\\\"  \\\"\\n \\\\ x \"": "\"  \"\n \\ x ",
     }.items()
 ])
-def test_positive_string_literal_token(input_text, expected_tokens):
+def test_build_string_literal_token(input_text, expected_tokens):
     stream = StringIO(input_text)
     source = Source(stream)
     with ErrorManager() as error_handler:
@@ -146,7 +146,7 @@ def test_should_not_allow_unknown_escaped_characters(input_text):
         str(sys.maxsize): sys.maxsize,
     }.items()
 ])
-def test_positive_int_literal_token(input_text, expected_tokens):
+def test_build_int_literal_token(input_text, expected_tokens):
     stream = StringIO(input_text)
     source = Source(stream)
     with ErrorManager() as error_handler:
@@ -197,7 +197,7 @@ def test_should_not_allow_numbers_to_be_too_big(input_text):
         "15231.53245": 15231.53245
     }.items()
 ])
-def test_positive_float_literal_token(input_text, expected_tokens):
+def test_build_float_literal_token(input_text, expected_tokens):
     stream = StringIO(input_text)
     source = Source(stream)
     with ErrorManager() as error_handler:
@@ -220,10 +220,10 @@ def test_should_not_allow_numbers_to_be_too_big(input_text):
 
 
 @pytest.mark.parametrize("input_text, expected_tokens", [
-    ("true", Token(TokenType.BOOL_LITERAL, Position(1, 1), True)),
-    ("false", Token(TokenType.BOOL_LITERAL, Position(1, 1), False))
+    ("true", Token(TokenType.BOOLEAN_LITERAL, Position(1, 1), True)),
+    ("false", Token(TokenType.BOOLEAN_LITERAL, Position(1, 1), False))
 ])
-def test_positive_build_boolean_literal_token(input_text, expected_tokens):
+def test_build_boolean_literal_token(input_text, expected_tokens):
     stream = StringIO(input_text)
     source = Source(stream)
     with ErrorManager() as error_handler:
@@ -238,7 +238,7 @@ def test_positive_build_boolean_literal_token(input_text, expected_tokens):
         "#this is comment without new line": "this is comment without new line"
     }.items()
 ])
-def test_positive_build_comment_token(input_text, expected_tokens):
+def test_build_comment_token(input_text, expected_tokens):
     stream = StringIO(input_text)
     source = Source(stream)
     with ErrorManager() as error_handler:
