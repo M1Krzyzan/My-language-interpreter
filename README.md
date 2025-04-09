@@ -168,8 +168,8 @@ void main(){
 ```
 #### Komentarze
 ```
-/* Komentarz
-   blokowy */
+$ Komentarz
+   blokowy $
 int x = 5; # Komentarz jednoliniowy
 ```
 ### Formalna specyfikacja i składnia (EBNF)

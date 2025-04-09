@@ -1,10 +1,11 @@
-from io import TextIOWrapper, StringIO
+from io import StringIO
+from typing import TextIO
 
 from src.lexer.position import Position
 
 
 class Source:
-    def __init__(self, stream: TextIOWrapper | StringIO):
+    def __init__(self, stream: TextIO | StringIO):
         self.stream = stream
         self.current_position = Position(line=1, column=0)
         self.current_char = None

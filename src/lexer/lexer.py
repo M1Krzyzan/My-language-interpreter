@@ -12,18 +12,26 @@ from src.errors.lexer_errors import (
     UnterminatedStringLiteralError,
     StringTooLongError,
     CommentTooLongError,
-    UnknownTokenError
+    UnknownTokenError, UnterminatedCommentBlockError, LexerError
 )
 
-MAX_COMMENT_LEN = 3000
-MAX_STRING_LEN = 3000
-MAX_IDENTIFIER_LENGTH = 128
 MAX_PRECISION = 15
 
 
 class Lexer:
-    def __init__(self, source: Source):
+    def __init__(
+            self,
+            source: Source,
+            max_comment_len: int = 3000,
+            max_string_len: int = 3000,
+            max_identifier_len: int = 128,
+            max_precision: int = 15
+    ):
         self.source = source
+        self._max_comment_len = max_comment_len
+        self._max_identifier_len = max_identifier_len
+        self._max_string_len = max_string_len
+        self._max_precision = max_precision
         self.current_char = self.source.next_char()
         self.current_token_position = None
 
@@ -44,26 +52,33 @@ class Lexer:
         ):
             return token
         else:
-            raise UnknownTokenError(self.current_token_position)
+            raise UnknownTokenError(self.current_token_position, self.current_char)
 
     def _skip_white_characters(self):
         while self.current_char.isspace():
             self.current_char = self.source.next_char()
 
     def _try_build_comment(self) -> Optional[Token]:
-        if self.current_char != '#':
+        stop_char = Symbols.comment_map.get(self.current_char)
+
+        if not stop_char:
             return
 
-        value = []
+        builder = []
         self.current_char = self.source.next_char()
 
-        while self.current_char != '\n' and self.current_char != '\x03':
-            if len(value) >= MAX_COMMENT_LEN:
+        while self.current_char != stop_char and self.current_char != '\x03':
+            if len(builder) >= self._max_comment_len:
                 raise CommentTooLongError(self.current_token_position)
-            value.append(self.current_char)
+            builder.append(self.current_char)
             self.current_char = self.source.next_char()
 
-        value = "".join(value)
+        if stop_char == '$' and self.current_char != '$':
+            raise UnterminatedCommentBlockError(self.current_token_position)
+
+        value = "".join(builder)
+        self.current_char = self.source.next_char()
+
         return Token(TokenType.COMMENT, self.current_token_position, value)
 
     def _try_build_keyword_or_identifier(self) -> Optional[Token]:
@@ -74,7 +89,7 @@ class Lexer:
         self.current_char = self.source.next_char()
 
         while self.current_char.isalnum() or self.current_char == "_":
-            if len(builder) >= MAX_IDENTIFIER_LENGTH:
+            if len(builder) >= self._max_identifier_len:
                 raise IdentifierTooLongError(self.current_token_position)
             builder.append(self.current_char)
             self.current_char = self.source.next_char()
@@ -100,8 +115,8 @@ class Lexer:
 
         value = []
 
-        while self.current_char != '"' and self.current_char != "" and self.current_char != '\x03':
-            if len(value) >= MAX_STRING_LEN:
+        while self.current_char != '"' and self.current_char != '\x03' and self.current_char != "\n":
+            if len(value) >= self._max_string_len:
                 raise StringTooLongError(self.current_token_position)
 
             if self.current_char == '\\':
@@ -111,9 +126,10 @@ class Lexer:
             value.append(self.current_char)
             self.current_char = self.source.next_char()
 
-        if self.current_char == "" or self.current_char == '\x03':
+        if self.current_char == "\n" or self.current_char == '\x03':
             raise UnterminatedStringLiteralError(self.current_token_position)
 
+        self.current_char = self.source.next_char()
         value = "".join(value)
 
         return Token(TokenType.STRING_LITERAL, self.current_token_position, value)
@@ -158,7 +174,7 @@ class Lexer:
         builder = []
 
         while self.current_char.isdecimal():
-            if len(builder) >= MAX_PRECISION:
+            if len(builder) >= self._max_precision:
                 raise PrecisionTooHighError(self.current_token_position)
             builder.append(self.current_char)
             self.current_char = self.source.next_char()
@@ -172,7 +188,6 @@ class Lexer:
 
         first_char = self.current_char
         self.current_char = self.source.next_char()
-
         if token_type := Symbols.double_char.get(first_char + self.current_char):
             return Token(token_type, self.current_token_position)
         elif token_type := Symbols.single_char.get(first_char):
@@ -189,22 +204,36 @@ class Lexer:
         if escaped_character := escaped_characters_map.get(self.current_char):
             return escaped_character
 
-        raise UnexpectedEscapeCharacterError(self.current_token_position)
+        raise UnexpectedEscapeCharacterError(self.current_token_position, f"\\{self.current_char}")
 
 
 if __name__ == "__main__":
     code = (
-        """#COMMENT
-        int sum(float x, int y){ #COMMENT 
-            if (x =! y){
-                return x to int + y;
-            }
-        }""")
+        """$
+Block
+comment
+$
+void print_even_if_not_divisible_by_5(int x){
+  while (x > 0) {
+      # comment
+      if (x % 5 == 0) {
+          break;
+      }
+      if (x % 2 == 0) {
+          continue;
+      }
+      print("x: ", x);
+      x = x - 1;
+}
+""")
     code_source = Source(StringIO(code))
     lexer = Lexer(code_source)
     token_ = lexer.next_token()
     tokens = [token_]
-    while token_.type != TokenType.ETX:
-        token_ = lexer.next_token()
-        tokens.append(token_)
-        print(token_.type, end=" ")
+    try:
+        while token_.type != TokenType.ETX:
+            token_ = lexer.next_token()
+            tokens.append(token_)
+            print(token_)
+    except LexerError as e:
+        print(e)

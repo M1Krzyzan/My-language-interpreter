@@ -19,6 +19,9 @@ class TokenType(Enum):
     STRING_KEYWORD = auto()
     BOOL_KEYWORD = auto()
     EXCEPTION_KEYWORD = auto()
+    CATCH_KEYWORD = auto()
+    TRY_KEYWORD = auto()
+    THROW_KEYWORD = auto()
 
     LEFT_ROUND_BRACKET = auto()
     RIGHT_ROUND_BRACKET = auto()
@@ -55,7 +58,6 @@ class TokenType(Enum):
     FLOAT_LITERAL = auto()
     BOOLEAN_LITERAL = auto()
     COMMENT = auto()
-    UNKNOWN = auto()
     ETX = auto()
 
 
@@ -75,6 +77,9 @@ class Symbols:
         "string": TokenType.STRING_KEYWORD,
         "bool": TokenType.BOOL_KEYWORD,
         "Exception": TokenType.EXCEPTION_KEYWORD,
+        "throw": TokenType.THROW_KEYWORD,
+        "try": TokenType.TRY_KEYWORD,
+        "catch": TokenType.CATCH_KEYWORD,
         "or": TokenType.OR_OPERATOR,
         "and": TokenType.AND_OPERATOR,
         "not": TokenType.NEGATION_OPERATOR,
@@ -107,12 +112,16 @@ class Symbols:
         ">=": TokenType.GREATER_THAN_OR_EQUAL_OPERATOR,
         "==": TokenType.EQUAL_OPERATOR,
         "!=": TokenType.NOT_EQUAL_OPERATOR,
-        "/*": TokenType.COMMENT
     }
 
     boolean_literals = {
         "true": TokenType.BOOLEAN_LITERAL,
         "false": TokenType.BOOLEAN_LITERAL
+    }
+
+    comment_map = {
+        "$": "$",
+        "#": "\n"
     }
 
     leads_to_double_char = ['<', '>', '=', '!']
