@@ -1,6 +1,6 @@
 # Interpreter własnego języka programowania
 ### Wymagania funkcjonalne  
-- Typowanie silne i statyczne  
+- Typowanie silne i dynamiczne  
 - W języku zdefiniowane są następujące typy podstawowe:  
   - liczby całkowite: `int`  
   - liczby zmiennoprzecinkowe: `float`  
@@ -72,7 +72,8 @@ bool g = c == d and c != e
 ```
 #### Deklaracje funkcji
 ```
-int sum(float x, int y){
+#COMMENT
+int sum(float x, int y){ #COMMENT 
   return x to int + y;
 }
 

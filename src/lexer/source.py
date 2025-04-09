@@ -11,7 +11,7 @@ class Source:
 
     def next_char(self) -> str:
         if self.current_char == '':
-            return chr(3)
+            return '\x03'
 
         if self.current_char == '\n':
             self.current_position.advance_line()
@@ -20,7 +20,7 @@ class Source:
 
         self.current_char = self.stream.read(1)
 
-        return self.current_char if self.current_char else chr(3)
+        return self.current_char if self.current_char else '\x03'
 
     def peek_next_char(self):
         current_index = self.stream.tell()

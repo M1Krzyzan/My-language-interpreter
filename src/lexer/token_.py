@@ -106,7 +106,8 @@ class Symbols:
         "<=": TokenType.LESS_THAN_OR_EQUAL_OPERATOR,
         ">=": TokenType.GREATER_THAN_OR_EQUAL_OPERATOR,
         "==": TokenType.EQUAL_OPERATOR,
-        "!=": TokenType.NOT_EQUAL_OPERATOR
+        "!=": TokenType.NOT_EQUAL_OPERATOR,
+        "/*": TokenType.COMMENT
     }
 
     boolean_literals = {
