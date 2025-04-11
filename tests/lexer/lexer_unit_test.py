@@ -15,7 +15,7 @@ from src.errors.lexer_errors import (
 from src.lexer.lexer import Lexer
 from src.lexer.position import Position
 from src.lexer.source import Source
-from src.lexer.token import TokenType, Token, Symbols
+from src.lexer.token_ import TokenType, Token, Symbols
 
 
 def tokenize(input_text: str) -> Token:

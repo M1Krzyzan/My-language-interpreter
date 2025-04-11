@@ -2,7 +2,7 @@ import sys
 from typing import Optional
 
 from src.lexer.source import Source
-from src.lexer.token import TokenType, Token, Symbols
+from src.lexer.token_ import TokenType, Token, Symbols
 from src.errors.lexer_errors import (
     OverFlowError,
     IdentifierTooLongError,
