@@ -18,7 +18,7 @@
   - koniunkcja  
   - alternatywa  
 - Konkatenacja na stringach  
-- Komentarze jednoliniowe `#` i wieloliniowe `/* */`  
+- Komentarze jednoliniowe `#` i wieloliniowe `$ $`  
 - Instrukcja warunkowa `if-elif-else`  
 - Obsługuje instrukcję pętli `while`  
 - Możliwość definiowania i wywoływania własnych funkcji wraz z lokalnymi argumentami  
@@ -63,32 +63,32 @@ z = quad(x);
 a = x to float;
 b = quad(x) to float;
 
-string c = "Lorem ipsum dolor";
-string d = "Lorem" + " ipsum" + " dolor";
-string e = d + a to string;
+c = "Lorem ipsum dolor";
+d = "Lorem" + " ipsum" + " dolor";
+e = d + a to string;
 
-bool f = true;
-bool g = c == d and c != e
+f = true;
+g = c == d and c != e
 ```
 #### Deklaracje funkcji
 ```
 #COMMENT
-int sum(float x, int y){ #COMMENT 
+func sum(x, y){ #COMMENT 
   return x to int + y;
 }
 
-float quad(float x){
+func quad(x){
   return x*x;
 }
 
 void quadratic_sum(){
-  float x = quad(sum(3.1, 5) to float));
+  x = quad(sum(3.1, 5) to float));
   print(x);
 }
 ```
 #### Rekursywne wywołanie funkcji
 ```
-void fibonacci(int n){
+func fibonacci(n){
   if(n<3){
     return 1;
   }
@@ -97,7 +97,7 @@ void fibonacci(int n){
 ```
 #### Interakcja z użytkownikiem - input/print
 ```
-int read_number(){
+func read_number(){
   print("Write number: ";
   return input() to int;
 }
@@ -105,12 +105,12 @@ int read_number(){
 number_1 = read_number();
 number_2 = read_number();
 
-float result = number_1 / number_2;
+result = number_1 / number_2;
 print(number_1 to string + "/" + number_2 to string + " = " + result to string + "\n");
 ```
 #### Instrukcja warunkowa `if`
 ```
-void rate_number(int x){
+func rate_number(x){
   if (x > 10) {
       print("x is greater than 10");
   } elif (x == 10) {
@@ -122,7 +122,7 @@ void rate_number(int x){
 ```
 #### Pętla `while` wraz z komunikatami `break` i `continue`
 ```
-void print_even_if_not_divisible_by_5(int x){
+func print_even_if_not_divisible_by_5(x){
   while (x > 0) {
       if (x % 5 == 0) {
           break;
@@ -136,13 +136,13 @@ void print_even_if_not_divisible_by_5(int x){
 ```
 #### Tworzenie własnych wyjątków i ich filtrowanie
 ```
-exception WrongNumberOfSidesError {
-    message: string = "Wrong number of sides - should be higher than 2: ";
+exception WrongNumberOfSidesError(message, number_of_sides, line) {
+    message: "Wrong number of sides - should be higher than 2: ";
     number_of_sides: int;
     line: int;
 }
 
-exception WrongNumberOfSidesError {
+exception WrongNumberOfSidesError(message, length, line) {
     message: string = "Wrong length of side - should be higher than 0";
     length: int;
     line: int;
@@ -177,11 +177,9 @@ int x = 5; # Komentarz jednoliniowy
 
 program = {function_definition | exception_definition};
 
-function_declaration = function_return_type, identifier, "(", parameters, ")", statement_block;
+function_declaration = "func", identifier, "(", parameters, ")", statement_block;
 
-parameters = [parameter, {",", parameter}];
-
-parameter = simple_type, identifier;
+parameters = [identifier, {",", identifier}];
 
 statement = if_statement |
             while_statement |
@@ -200,8 +198,9 @@ exception_throw = "throw", identifier, ";";
 
 exception_definition = "exception", identifier,"(", parameters, ")", "{", {attribute_definition}, "}";
 
-attribute_definition = identifier, ":", expression;
-          
+attribute_definition = identifier, ":", simple_type, ["=", expression];
+
+
 while_statement = "while", "(", expression, ")", statement_block;
 
 loop_control_statement = ("break" | "continue"), ";";
@@ -210,7 +209,7 @@ value_assigment_or_call = identifier, ("=", expression | "(", function_arguments
 
 function_arguments = [expression, {",", expression}];
 
-return_statement = "return", [expression], ";";
+return_statement = "return", [expression];
 
 try_catch_statement = "try", statement_block, catch_statement, {catch_statement};
 
@@ -228,18 +227,15 @@ additive_expression = multiplicative_expression, {additive_operator, multiplicat
 
 multiplicative_expression = casted_basic_expression, {multiplicative_operator, casted_basic_expression};
 
-negated_expression = [negation_operator], basic_expression;
-
 casted_basic_expression = negated_expression, ["to", simple_type];
+
+negated_expression = [negation_operator], basic_expression;
 
 call_or_atribute_or_var = identifier, ["(", function_arguments, ")" | ".", identifier ];
 
 basic_expression = literal |
                    "(", expression, ")" |
                    call_or_atribute_or_var;
-
-function_return_type = simple_type |
-                       "void";
 
 simple_type = "int" | 
               "float" |

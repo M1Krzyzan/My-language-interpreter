@@ -13,7 +13,7 @@ class TokenType(Enum):
     BREAK_KEYWORD = auto()
     CONTINUE_KEYWORD = auto()
     TO_KEYWORD = auto()
-    VOID_KEYWORD = auto()
+    FUNC_KEYWORD = auto()
     INT_KEYWORD = auto()
     FLOAT_KEYWORD = auto()
     STRING_KEYWORD = auto()
@@ -71,7 +71,7 @@ class Symbols:
         "break": TokenType.BREAK_KEYWORD,
         "continue": TokenType.CONTINUE_KEYWORD,
         "to": TokenType.TO_KEYWORD,
-        "void": TokenType.VOID_KEYWORD,
+        "func": TokenType.FUNC_KEYWORD,
         "int": TokenType.INT_KEYWORD,
         "float": TokenType.FLOAT_KEYWORD,
         "string": TokenType.STRING_KEYWORD,
@@ -104,7 +104,7 @@ class Symbols:
         "<": TokenType.LESS_THAN_OPERATOR,
         ">": TokenType.GREATER_THAN_OPERATOR,
         "=": TokenType.ASSIGNMENT,
-        "!": TokenType.NEGATION_OPERATOR
+        '!': TokenType.NEGATION_OPERATOR
     }
 
     double_char = {
@@ -123,8 +123,6 @@ class Symbols:
         "$": "$",
         "#": "\n"
     }
-
-    leads_to_double_char = ['<', '>', '=', '!']
 
 
 class Token:
