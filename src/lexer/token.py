@@ -76,7 +76,7 @@ class Symbols:
         "float": TokenType.FLOAT_KEYWORD,
         "string": TokenType.STRING_KEYWORD,
         "bool": TokenType.BOOL_KEYWORD,
-        "Exception": TokenType.EXCEPTION_KEYWORD,
+        "exception": TokenType.EXCEPTION_KEYWORD,
         "throw": TokenType.THROW_KEYWORD,
         "try": TokenType.TRY_KEYWORD,
         "catch": TokenType.CATCH_KEYWORD,

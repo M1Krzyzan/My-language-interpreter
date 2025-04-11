@@ -9,12 +9,13 @@ from src.errors.lexer_errors import (
     UnexpectedEscapeCharacterError,
     PrecisionTooHighError,
     CommentTooLongError,
-    UnterminatedStringLiteralError, UnterminatedCommentBlockError
+    UnterminatedStringLiteralError,
+    UnterminatedCommentBlockError
 )
 from src.lexer.lexer import Lexer
 from src.lexer.position import Position
 from src.lexer.source import Source
-from src.lexer.token_ import TokenType, Token, Symbols
+from src.lexer.token import TokenType, Token, Symbols
 
 
 def tokenize(input_text: str) -> Token:
@@ -90,7 +91,7 @@ def test_should_not_allow_string_literals_to_be_too_long(input_text):
         lexer.next_token()
 
 
-@pytest.mark.parametrize("input_text,", ["\"text", "\"text\n\"", "\"text\x03"])
+@pytest.mark.parametrize("input_text,", ["\"text", "\"text\n\"", "\"text\x03", "\""])
 def test_should_print_error_for_unclosed_string_literals(input_text):
     stream = StringIO(input_text, None)
     source = Source(stream)

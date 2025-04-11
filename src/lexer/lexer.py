@@ -1,9 +1,8 @@
 import sys
-from io import StringIO
 from typing import Optional
 
 from src.lexer.source import Source
-from src.lexer.token_ import TokenType, Token, Symbols
+from src.lexer.token import TokenType, Token, Symbols
 from src.errors.lexer_errors import (
     OverFlowError,
     IdentifierTooLongError,
@@ -12,10 +11,10 @@ from src.errors.lexer_errors import (
     UnterminatedStringLiteralError,
     StringTooLongError,
     CommentTooLongError,
-    UnknownTokenError, UnterminatedCommentBlockError, LexerError
+    UnknownTokenError,
+    UnterminatedCommentBlockError,
+    LexerError
 )
-
-MAX_PRECISION = 15
 
 
 class Lexer:
@@ -208,32 +207,19 @@ class Lexer:
 
 
 if __name__ == "__main__":
-    code = (
-        """$
-Block
-comment
-$
-void print_even_if_not_divisible_by_5(int x){
-  while (x > 0) {
-      # comment
-      if (x % 5 == 0) {
-          break;
-      }
-      if (x % 2 == 0) {
-          continue;
-      }
-      print("x: ", x);
-      x = x - 1;
-}
-""")
-    code_source = Source(StringIO(code))
-    lexer = Lexer(code_source)
-    token_ = lexer.next_token()
-    tokens = [token_]
-    try:
-        while token_.type != TokenType.ETX:
-            token_ = lexer.next_token()
-            tokens.append(token_)
+    if len(sys.argv) != 2:
+        print("Usage: python lexer.py <filename>")
+        sys.exit(1)
+
+    with open(sys.argv[1], "r") as file:
+        code_source = Source(file)
+        lexer = Lexer(code_source)
+        token_ = lexer.next_token()
+
+        try:
+            while token_.type != TokenType.ETX:
+                print(token_)
+                token_ = lexer.next_token()
             print(token_)
-    except LexerError as e:
-        print(e)
+        except LexerError as e:
+            print(e)

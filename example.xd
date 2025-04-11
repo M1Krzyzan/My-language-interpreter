@@ -1,0 +1,35 @@
+exception ValueError {
+    message: string = "Wrong value - should be higher than 0: ";
+    value: int;
+}
+
+$
+Block
+comment
+$
+void print_even_if_not_divisible_by_5(int x){
+    while (x > 0) {
+        # comment
+        if (x % 5 == 0) {
+            break;
+        }elif (x % 2 == 0) {
+            continue;
+        }else{
+            print("x: ", x);
+            x = x - 1;
+        }
+    }
+}
+void main(){
+    try{
+        x = input() to int;
+        if (x <= 0){
+            throw ValueError(x);
+        }
+        print_even_if_not_divisible_by_5(x);
+    }catch(BaseException e){
+        print("Error: ", e.message, "\n \t Value=", e.value, e.line, "\n");
+    }
+    text = "text \n wtih escaping \t \n"
+
+}
