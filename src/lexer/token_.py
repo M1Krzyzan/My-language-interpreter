@@ -13,7 +13,7 @@ class TokenType(Enum):
     BREAK_KEYWORD = auto()
     CONTINUE_KEYWORD = auto()
     TO_KEYWORD = auto()
-    FUNC_KEYWORD = auto()
+    VOID_KEYWORD = auto()
     INT_KEYWORD = auto()
     FLOAT_KEYWORD = auto()
     STRING_KEYWORD = auto()
@@ -71,7 +71,7 @@ class Symbols:
         "break": TokenType.BREAK_KEYWORD,
         "continue": TokenType.CONTINUE_KEYWORD,
         "to": TokenType.TO_KEYWORD,
-        "func": TokenType.FUNC_KEYWORD,
+        "void": TokenType.VOID_KEYWORD,
         "int": TokenType.INT_KEYWORD,
         "float": TokenType.FLOAT_KEYWORD,
         "string": TokenType.STRING_KEYWORD,
@@ -83,6 +83,8 @@ class Symbols:
         "or": TokenType.OR_OPERATOR,
         "and": TokenType.AND_OPERATOR,
         "not": TokenType.NEGATION_OPERATOR,
+        "true": TokenType.BOOLEAN_LITERAL,
+        "false": TokenType.BOOLEAN_LITERAL
     }
 
     single_char = {
@@ -104,7 +106,8 @@ class Symbols:
         "<": TokenType.LESS_THAN_OPERATOR,
         ">": TokenType.GREATER_THAN_OPERATOR,
         "=": TokenType.ASSIGNMENT,
-        '!': TokenType.NEGATION_OPERATOR
+        '!': TokenType.NEGATION_OPERATOR,
+
     }
 
     double_char = {
@@ -132,7 +135,7 @@ class Token:
         self.value = value
 
     def __repr__(self):
-        return f"Token({self.type}, {repr(self.value)}, pos={self.position})"
+        return f"Token({self.type}, pos=({self.position}), {repr(self.value)})"
 
     def __eq__(self, other):
         return self.type == other.type and self.value == other.value and self.position == other.position

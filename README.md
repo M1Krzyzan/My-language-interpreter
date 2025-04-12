@@ -1,6 +1,6 @@
 # Interpreter własnego języka programowania
 ### Wymagania funkcjonalne  
-- Typowanie silne i dynamiczne  
+- Typowanie silne i statyczne  
 - W języku zdefiniowane są następujące typy podstawowe:  
   - liczby całkowite: `int`  
   - liczby zmiennoprzecinkowe: `float`  
@@ -88,7 +88,7 @@ void quadratic_sum(){
 ```
 #### Rekursywne wywołanie funkcji
 ```
-func fibonacci(n){
+int fibonacci(int n){
   if(n<3){
     return 1;
   }
@@ -97,7 +97,7 @@ func fibonacci(n){
 ```
 #### Interakcja z użytkownikiem - input/print
 ```
-func read_number(){
+int read_number(){
   print("Write number: ";
   return input() to int;
 }
@@ -110,7 +110,7 @@ print(number_1 to string + "/" + number_2 to string + " = " + result to string +
 ```
 #### Instrukcja warunkowa `if`
 ```
-func rate_number(x){
+void rate_number(int x){
   if (x > 10) {
       print("x is greater than 10");
   } elif (x == 10) {
@@ -122,7 +122,7 @@ func rate_number(x){
 ```
 #### Pętla `while` wraz z komunikatami `break` i `continue`
 ```
-func print_even_if_not_divisible_by_5(x){
+void print_even_if_not_divisible_by_5(int x){
   while (x > 0) {
       if (x % 5 == 0) {
           break;
@@ -177,7 +177,7 @@ int x = 5; # Komentarz jednoliniowy
 
 program = {function_definition | exception_definition};
 
-function_declaration = "func", identifier, "(", parameters, ")", statement_block;
+function_declaration = simple_type, identifier, "(", parameters, ")", statement_block;
 
 parameters = [identifier, {",", identifier}];
 

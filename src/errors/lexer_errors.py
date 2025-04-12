@@ -1,3 +1,6 @@
+import sys
+
+
 class LexerError(Exception):
     def __init__(self, message, position):
         super().__init__(message)
@@ -5,30 +8,30 @@ class LexerError(Exception):
         self.position = position
 
     def __str__(self):
-        return f"\033[31mLexerError: {self.message}, {self.position}"
+        return f"\033[31mLexerError: {self.message} at {self.position}"
 
 
 class OverFlowError(LexerError):
     def __init__(self, position):
-        message = 'Number too big'
+        message = f'Number too big: Should be less than or equal to {sys.maxsize} '
         super().__init__(message, position)
 
 
 class IdentifierTooLongError(LexerError):
-    def __init__(self, position):
-        message = 'Identifier name too long'
+    def __init__(self, position, length_limit):
+        message = 'Identifier name too long: Should be less than or equal to %d characters' % length_limit
         super().__init__(message, position)
 
 
 class StringTooLongError(LexerError):
-    def __init__(self, position):
-        message = 'String literal too long'
+    def __init__(self, position, length_limit):
+        message = 'String literal too long: Should be less than %d characters' % length_limit
         super().__init__(message, position)
 
 
 class CommentTooLongError(LexerError):
-    def __init__(self, position):
-        message = 'Comment too long'
+    def __init__(self, position, length_limit):
+        message = 'Comment too long: Should be less than %d characters' % length_limit
         super().__init__(message, position)
 
 
@@ -45,8 +48,8 @@ class UnterminatedStringLiteralError(LexerError):
 
 
 class PrecisionTooHighError(LexerError):
-    def __init__(self, position):
-        message = f'Precision too high'
+    def __init__(self, position, precision_limit):
+        message = 'Precision too high: Should be less than or equal to %d digits}' % precision_limit
         super().__init__(message, position)
 
 

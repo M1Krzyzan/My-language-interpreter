@@ -16,5 +16,8 @@ class Position:
     def __str__(self):
         return f"Line {self.line}, Column {self.column}"
 
+    def __repr__(self):
+        return f"Line {self.line}, Column {self.column}"
+
     def __eq__(self, other):
         return self.line == other.line and self.column == other.column

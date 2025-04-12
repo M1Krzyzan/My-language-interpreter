@@ -8,11 +8,11 @@ Block
 comment
 $
 
-func is_even(number){
+bool is_even(int number){
     return number % 2 == 0;
 }
 
-func print_even_if_not_divisible_by_5(number){
+void print_even_if_not_divisible_by_5(int number){
     while (number > 0) {
         # comment
         if (number % 5 == 0) {
@@ -25,7 +25,7 @@ func print_even_if_not_divisible_by_5(number){
         }
     }
 }
-func main(){
+void main(){
     try{
         x = input() to int;
         if (x <= 0){

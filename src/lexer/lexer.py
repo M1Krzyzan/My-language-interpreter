@@ -31,7 +31,7 @@ class Lexer:
         self._max_identifier_len = max_identifier_len
         self._max_string_len = max_string_len
         self._max_precision = max_precision
-        self.current_char = self.source.next_char()
+        self.current_char, self.current_char_position = self.source.next_char()
         self.current_token_position = None
 
     def next_token(self):
@@ -55,7 +55,7 @@ class Lexer:
 
     def _skip_white_characters(self):
         while self.current_char.isspace():
-            self.current_char = self.source.next_char()
+            self.next_character()
 
     def _try_build_comment(self) -> Optional[Token]:
         stop_char = Symbols.comment_map.get(self.current_char)
@@ -64,19 +64,19 @@ class Lexer:
             return
 
         builder = []
-        self.current_char = self.source.next_char()
+        self.next_character()
 
         while self.current_char != stop_char and self.current_char != '\x03':
             if len(builder) >= self._max_comment_len:
-                raise CommentTooLongError(self.current_token_position)
+                raise CommentTooLongError(self.current_char_position, self._max_comment_len)
             builder.append(self.current_char)
-            self.current_char = self.source.next_char()
+            self.next_character()
 
         if stop_char == '$' and self.current_char != '$':
-            raise UnterminatedCommentBlockError(self.current_token_position)
+            raise UnterminatedCommentBlockError(self.current_char_position)
 
         value = "".join(builder)
-        self.current_char = self.source.next_char()
+        self.next_character()
 
         return Token(TokenType.COMMENT, self.current_token_position, value)
 
@@ -85,50 +85,43 @@ class Lexer:
             return
 
         builder = [self.current_char]
-        self.current_char = self.source.next_char()
+        self.next_character()
 
         while self.current_char.isalnum() or self.current_char == "_":
             if len(builder) >= self._max_identifier_len:
-                raise IdentifierTooLongError(self.current_token_position)
+                raise IdentifierTooLongError(self.current_char_position, self._max_identifier_len)
             builder.append(self.current_char)
-            self.current_char = self.source.next_char()
+            self.next_character()
 
         name_str = "".join(builder)
 
-        token_type = (Symbols.boolean_literals.get(name_str) or
-                      Symbols.keywords.get(name_str, TokenType.IDENTIFIER))
+        token_type = Symbols.keywords.get(name_str, TokenType.IDENTIFIER)
 
-        if token_type == TokenType.IDENTIFIER:
-            return Token(token_type, self.current_token_position, name_str)
-        elif token_type == TokenType.BOOLEAN_LITERAL:
-            value = name_str == "true"
-            return Token(token_type, self.current_token_position, value)
-
-        return Token(token_type, self.current_token_position)
+        return Token(token_type, self.current_token_position, name_str)
 
     def _try_build_string_literal(self) -> Optional[Token]:
         if self.current_char != '"':
             return None
 
-        self.current_char = self.source.next_char()
+        self.next_character()
 
         value = []
 
         while self.current_char != '"' and self.current_char != '\x03' and self.current_char != "\n":
             if len(value) >= self._max_string_len:
-                raise StringTooLongError(self.current_token_position)
+                raise StringTooLongError(self.current_char_position, self._max_string_len)
 
             if self.current_char == '\\':
-                self.current_char = self.source.next_char()
+                self.next_character()
                 self.current_char = self._get_escaped_character()
 
             value.append(self.current_char)
-            self.current_char = self.source.next_char()
+            self.next_character()
 
         if self.current_char == "\n" or self.current_char == '\x03':
-            raise UnterminatedStringLiteralError(self.current_token_position)
+            raise UnterminatedStringLiteralError(self.current_char_position)
 
-        self.current_char = self.source.next_char()
+        self.next_character()
         value = "".join(value)
 
         return Token(TokenType.STRING_LITERAL, self.current_token_position, value)
@@ -150,17 +143,17 @@ class Lexer:
 
     def _parse_integer_part(self) -> int:
         decimal_part = int(self.current_char)
-        self.current_char = self.source.next_char()
+        self.next_character()
 
         if decimal_part == 0 and self.current_char != '.':
             return 0
 
         while self.current_char.isdecimal():
             if (sys.maxsize - int(self.current_char)) // 10 < decimal_part:
-                raise OverFlowError(self.current_token_position)
+                raise OverFlowError(self.current_char_position)
 
             decimal_part = 10 * decimal_part + int(self.current_char)
-            self.current_char = self.source.next_char()
+            self.next_character()
 
         return decimal_part
 
@@ -169,14 +162,14 @@ class Lexer:
         if not next_character.isdecimal():
             return None
 
-        self.current_char = self.source.next_char()
+        self.next_character()
         builder = []
 
         while self.current_char.isdecimal():
             if len(builder) >= self._max_precision:
-                raise PrecisionTooHighError(self.current_token_position)
+                raise PrecisionTooHighError(self.current_char_position, self._max_precision)
             builder.append(self.current_char)
-            self.current_char = self.source.next_char()
+            self.next_character()
 
         fraction_digits = "".join(builder)
         return int(fraction_digits) / 10 ** len(fraction_digits)
@@ -186,8 +179,9 @@ class Lexer:
             return
 
         first_char = self.current_char
-        self.current_char = self.source.next_char()
+        self.next_character()
         if token_type := Symbols.double_char.get(first_char + self.current_char):
+            self.next_character()
             return Token(token_type, self.current_token_position)
         elif token_type := Symbols.single_char.get(first_char):
             return Token(token_type, self.current_token_position)
@@ -203,7 +197,10 @@ class Lexer:
         if escaped_character := escaped_characters_map.get(self.current_char):
             return escaped_character
 
-        raise UnexpectedEscapeCharacterError(self.current_token_position, f"\\{self.current_char}")
+        raise UnexpectedEscapeCharacterError(self.current_char_position, f"\\{self.current_char}")
+    
+    def next_character(self) -> None:
+        self.current_char, self.current_char_position = self.source.next_char()
 
 
 if __name__ == "__main__":
