@@ -163,16 +163,16 @@ class Lexer:
             return None
 
         self.next_character()
-        builder = []
-
+        fractional_part = 0
+        digits = 0
         while self.current_char.isdecimal():
-            if len(builder) >= self._max_precision:
+            if digits >= self._max_precision:
                 raise PrecisionTooHighError(self.current_char_position, self._max_precision)
-            builder.append(self.current_char)
+            fractional_part = 10 * fractional_part + int(self.current_char)
             self.next_character()
+            digits += 1
 
-        fraction_digits = "".join(builder)
-        return int(fraction_digits) / 10 ** len(fraction_digits)
+        return fractional_part / 10 ** digits
 
     def _try_build_special_character(self) -> Optional[Token]:
         if not Symbols.single_char.get(self.current_char):
