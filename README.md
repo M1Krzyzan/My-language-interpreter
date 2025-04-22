@@ -177,9 +177,11 @@ int x = 5; # Komentarz jednoliniowy
 
 program = {function_definition | exception_definition};
 
-function_declaration = simple_type, identifier, "(", parameters, ")", statement_block;
+function_declaration = function_return_type, identifier, "(", parameters, ")", statement_block;
 
-parameters = [identifier, {",", identifier}];
+parameters = [parameter, {",", parameter}];
+
+parameter = simple_type, identifier;
 
 statement = if_statement |
             while_statement |
@@ -209,7 +211,7 @@ value_assigment_or_call = identifier, ("=", expression | "(", function_arguments
 
 function_arguments = [expression, {",", expression}];
 
-return_statement = "return", [expression];
+return_statement = "return", [expression], ";";
 
 try_catch_statement = "try", statement_block, catch_statement, {catch_statement};
 
@@ -236,6 +238,9 @@ call_or_atribute_or_var = identifier, ["(", function_arguments, ")" | ".", ident
 basic_expression = literal |
                    "(", expression, ")" |
                    call_or_atribute_or_var;
+
+function_return_type = simple_type |
+                       "void";
 
 simple_type = "int" | 
               "float" |

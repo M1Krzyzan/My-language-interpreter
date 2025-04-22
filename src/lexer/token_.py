@@ -60,6 +60,18 @@ class TokenType(Enum):
     COMMENT = auto()
     ETX = auto()
 
+    def is_return_type(self) -> bool:
+        return self in (TokenType.INT_KEYWORD,
+                        TokenType.STRING_KEYWORD,
+                        TokenType.BOOL_KEYWORD,
+                        TokenType.FLOAT_KEYWORD,
+                        TokenType.VOID_KEYWORD)
+
+    def is_simple_type(self) -> bool:
+        return self in (TokenType.INT_KEYWORD,
+                        TokenType.STRING_KEYWORD,
+                        TokenType.BOOL_KEYWORD,
+                        TokenType.FLOAT_KEYWORD)
 
 class Symbols:
     keywords = {
