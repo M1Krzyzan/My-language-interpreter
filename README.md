@@ -198,7 +198,9 @@ if_statement = "if", "(", expression, ")", statement_block,
 
 exception_throw = "throw", identifier, ";";
 
-exception_definition = "exception", identifier,"(", parameters, ")", "{", {attribute_definition}, "}";
+exception_definition = "exception", identifier,"(", parameters, ")", attributes;
+
+attributes = "{", {attribute_definition}, "}";
 
 attribute_definition = identifier, ":", simple_type, ["=", expression];
 
@@ -233,11 +235,11 @@ casted_basic_expression = negated_expression, ["to", simple_type];
 
 negated_expression = [negation_operator], basic_expression;
 
-call_or_atribute_or_var = identifier, ["(", function_arguments, ")" | ".", identifier ];
+call_or_attribute_or_var = identifier, ["(", function_arguments, ")" | ".", identifier ];
 
 basic_expression = literal |
                    "(", expression, ")" |
-                   call_or_atribute_or_var;
+                   call_or_attribute_or_var;
 
 function_return_type = simple_type |
                        "void";

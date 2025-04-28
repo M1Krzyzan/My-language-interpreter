@@ -1,13 +1,40 @@
 from typing import Optional, List
 
 from src.ast.core_structures import *
-from src.ast.expressions import Expression
 from src.ast.types import Type
 from src.errors.parser_error import ParserError
 from src.lexer.lexer import Lexer
 from src.lexer.token_ import TokenType
-from src.ast.statemens import Exception, Statement, WhileStatement, IfStatement, LoopControlStatement, \
-    AssignmentStatement, FunctionCallStatement, ReturnStatement, TryCatchStatement, CatchStatement, Attribute
+from src.ast.expressions import (
+    Expression,
+    AndExpression,
+    RelationalExpression,
+    AdditiveExpression,
+    MultiplicativeExpression,
+    CastedExpression,
+    OrExpression,
+    NegatedExpression,
+    UnaryMinusExpression,
+    IntLiteral,
+    FloatLiteral,
+    BoolLiteral,
+    StringLiteral)
+from src.ast.statemens import (
+    Exception,
+    Statement,
+    WhileStatement,
+    IfStatement,
+    LoopControlStatement,
+    AssignmentStatement,
+    FunctionCallStatement,
+    ReturnStatement,
+    TryCatchStatement,
+    CatchStatement,
+    Attribute,
+    AttributeCall,
+    Variable)
+
+
 
 # TODO: CHECK FOR EXCEPTION AND RAISE THEM IN WHOLE CODE - LIKE MISSING
 #  ELEMENT OF STATEMENT/EXPRESSION
@@ -19,6 +46,10 @@ class Parser:
     def get_program(self):
         return self._parse_program()
 
+    def _consume_token(self):
+        self.current_token = self.lexer.next_token()
+
+    # program = {function_definition | exception_definition};
     def _parse_program(self) -> Program:
         functions = {}
         exceptions = {}
@@ -36,6 +67,7 @@ class Parser:
 
         return Program(functions, exceptions)
 
+    # function_declaration = function_return_type, identifier, "(", parameters, ")", statement_block;
     def _parse_function(self):
         if not self.current_token.type.is_return_type():
             return None
@@ -55,6 +87,7 @@ class Parser:
 
         return Function(name, parameters, return_type, statement_block)
 
+    # exception_definition = "exception", identifier,"(", parameters, ")", "{", {attribute_definition}, "}";
     def _parse_exception(self) -> Optional[Exception]:
         if self.current_token.type != TokenType.EXCEPTION_KEYWORD:
             return None
@@ -67,13 +100,7 @@ class Parser:
 
         return Exception(name, parameters, attributes)
 
-    def _expected_token(self, token_type: TokenType):
-        if self.current_token.type != token_type:
-            raise ParserError("Unexpected token", self.current_token.position)
-
-    def _consume_token(self):
-        self.current_token = self.lexer.next_token()
-
+    # parameters = [parameter, {",", parameter}];
     def _parse_parameters(self) -> List[Parameter]:
         self._expected_token(TokenType.LEFT_ROUND_BRACKET)
         self._consume_token()
@@ -92,6 +119,7 @@ class Parser:
 
         return parameters
 
+    # parameter = simple_type, identifier;
     def _parse_parameter(self) -> Optional[Parameter]:
         if not self.current_token.type.is_simple_type():
             return None
@@ -107,6 +135,7 @@ class Parser:
 
         return Parameter(name, type)
 
+    # statement_block = "{", {statement}, "}";
     def _parse_statement_block(self) -> StatementBlock:
         self._expected_token(TokenType.LEFT_CURLY_BRACKET)
         self._consume_token()
@@ -125,6 +154,12 @@ class Parser:
 
         return StatementBlock(statements)
 
+    # statement = if_statement |
+    #            while_statement |
+    #            loop_control_statement |
+    #            value_assigment_or_call |
+    #            reeturn_statement |
+    #            try_catch_statement;
     def _parse_statement(self) -> Statement:
         return (self._parse_while_statement() or
                 self._parse_if_statement() or
@@ -133,6 +168,9 @@ class Parser:
                 self._parse_return_statement() or
                 self._parse_try_catch_statement())
 
+    # if_statement = "if", "(", expression, ")", statement_block,
+    #                {"elif", "(", expression, ")", statement_block},
+    #                ["else", statement_block];
     def _parse_if_statement(self) -> Optional[IfStatement]:
         if self.current_token.type != TokenType.IF_KEYWORD:
             return None
@@ -166,6 +204,7 @@ class Parser:
                            elif_blocks,
                            else_block)
 
+    # while_statement = "while", "(", expression, ")", statement_block;
     def _parse_while_statement(self) -> Optional[WhileStatement]:
         if self.current_token.type != TokenType.WHILE_KEYWORD:
             return None
@@ -184,6 +223,7 @@ class Parser:
 
         return WhileStatement(position, condition, statement_block)
 
+    # loop_control_statement = ("break" | "continue"), ";";
     def _parse_loop_control_statement(self) -> Optional[LoopControlStatement]:
         if not self.current_token.type in (TokenType.BREAK_KEYWORD, TokenType.CONTINUE_KEYWORD):
             return None
@@ -195,6 +235,7 @@ class Parser:
 
         return LoopControlStatement(position)
 
+    # value_assigment_or_call = identifier, ("=", expression | "(", function_arguments, ")") ";";
     def _parse_assignment_or_function_call(self) -> Optional[AssignmentStatement | FunctionCallStatement]:
         if self.current_token.type != TokenType.IDENTIFIER:
             return None
@@ -214,6 +255,7 @@ class Parser:
 
         return FunctionCallStatement(position, name, function_arguments)
 
+    # return_statement = "return", [expression], ";";
     def _parse_return_statement(self) -> Optional[ReturnStatement]:
         if self.current_token.type != TokenType.RETURN_KEYWORD:
             return None
@@ -227,6 +269,7 @@ class Parser:
 
         return ReturnStatement(position, expression)
 
+    # try_catch_statement = "try", statement_block, catch_statement, {catch_statement};
     def _parse_try_catch_statement(self) -> Optional[TryCatchStatement]:
         if self.current_token.type != TokenType.TRY_KEYWORD:
             return None
@@ -244,6 +287,7 @@ class Parser:
 
         return TryCatchStatement(position, try_block, catch_statements)
 
+    # function_arguments = [expression, {",", expression}];
     def _parse_function_args(self) -> Optional[List[Expression]]:
         if self.current_token.type != TokenType.LEFT_ROUND_BRACKET:
             return None
@@ -263,6 +307,7 @@ class Parser:
 
         return expressions
 
+    # catch_statement = "catch", "(", exception, identifier, ")", statement_block;
     def _parse_catch_statement(self) -> Optional[CatchStatement]:
         if self.current_token.type != TokenType.CATCH_KEYWORD:
             return None
@@ -285,6 +330,7 @@ class Parser:
 
         return CatchStatement(position, exception, name, block)
 
+    # atributes = "{", {attribute_definition}, "}";
     def _parse_attributes(self) -> Optional[List[Attribute]]:
         if self.current_token.type != TokenType.LEFT_CURLY_BRACKET:
             return None
@@ -304,10 +350,11 @@ class Parser:
 
         return attributes
 
+    # attribute_definition = identifier, ":", simple_type, ["=", expression];
     def _parse_attribute(self) -> Optional[Attribute]:
         if self.current_token.type != TokenType.IDENTIFIER:
             return None
-        name = self.current_token.name
+        name = self.current_token.value
         self._consume_token()
 
         self._expected_token(TokenType.COLON)
@@ -319,7 +366,172 @@ class Parser:
 
         return Attribute(name, type, expression)
 
-    def _parse_expression(self) -> Expression:
-        pass
+    # expression = and_expression, {or_operator, and_expression};
+    def _parse_expression(self) -> Optional[Expression]:
+        if (left := self._parse_and_expression()) is None:
+            return left
 
+        while self.current_token.type == TokenType.OR_OPERATOR:
+            self._consume_token()
+            if (right := self._parse_and_expression()) is None:
+                raise ParserError("Missing expression after or operator", self.current_token.position)
+            left = OrExpression(left, right)
 
+        return left
+
+    # and_expression = relational_expression, {and_operator, relational_expression};
+    def _parse_and_expression(self) -> Optional[Expression]:
+        if (left := self._parse_relational_expression()) is None:
+            return left
+
+        while self.current_token.type == TokenType.AND_OPERATOR:
+            self._consume_token()
+            if (right := self._parse_relational_expression()) is None:
+                raise ParserError("Missing expression after and operator", self.current_token.position)
+            left = AndExpression(left, right)
+
+        return left
+
+    # relational_expression = additive_expression, [relational_operator, additive_expression];
+    def _parse_relational_expression(self) -> Optional[Expression]:
+        if left := self._parse_additive_expression() is None:
+            return left
+
+        if (operator_type := self.current_token.type).is_relational_operator():
+            self._consume_token()
+            if (right := self._parse_additive_expression()) is None:
+                raise ParserError("Missing expression after relational operator", self.current_token.position)
+            left = RelationalExpression(left, right, operator_type)
+
+        return left
+
+    # additive_expression = multiplicative_expression, {additive_operator, multiplicative_expression};
+    def _parse_additive_expression(self) -> Optional[Expression]:
+        if (left := self._parse_multiplicative_expression()) is None:
+            return left
+
+        while (operator_type := self.current_token.type).is_additive_operator():
+            self._consume_token()
+            if (right := self._parse_multiplicative_expression()) is None:
+                raise ParserError("Missing expression after additive operator", self.current_token.position)
+            left = AdditiveExpression(left, right, operator_type)
+
+        return left
+
+    # multiplicative_expression = casted_basic_expression, {multiplicative_operator, casted_basic_expression};
+    def _parse_multiplicative_expression(self) -> Optional[Expression]:
+        if (left := self._parse_casted_basic_expression()) is None:
+            return left
+
+        while (operator_type := self.current_token.type).is_multiplicative_operator():
+            self._consume_token()
+            if (right := self._parse_casted_basic_expression()) is None:
+                raise ParserError("Missing expression after multiplicative operator", self.current_token.position)
+            left = MultiplicativeExpression(left, right, operator_type)
+
+        return left
+
+    # casted_basic_expression = negated_expression, ["to", simple_type];
+    def _parse_casted_basic_expression(self) -> Optional[Expression]:
+        if (left := self._parse_negated_expression()) is None:
+            return left
+
+        if self.current_token.type == TokenType.TO_KEYWORD:
+            self._consume_token()
+            if not self.current_token.type.is_simple_type():
+                raise ParserError("Missing type after to keyword", self.current_token.position)
+            type = Type(self.current_token.type)
+            left = CastedExpression(left, type)
+
+        return left
+
+    # negated_expression = [negation_operator], basic_expression;
+    def _parse_negated_expression(self) -> Optional[Expression]:
+        if self.current_token.type == TokenType.NEGATION_OPERATOR:
+            self._consume_token()
+            if (expression := self._parse_basic_expression()) is None:
+                raise ParserError("Missing expression after negation operator", self.current_token.position)
+            return NegatedExpression(expression)
+
+        if self.current_token.type == TokenType.MINUS_OPERATOR:
+            self._consume_token()
+            if (expression := self._parse_basic_expression()) is None:
+                raise ParserError("Missing expression after unary minus operator", self.current_token.position)
+            return UnaryMinusExpression(expression)
+
+        return self._parse_basic_expression()
+
+    # basic_expression = literal |
+    #                    "(", expression, ")" |
+    #                    call_or_attribute_or_var;
+    def _parse_basic_expression(self) -> Optional[Expression]:
+        if self.current_token.type == TokenType.LEFT_ROUND_BRACKET:
+            self._consume_token()
+            if (expression := self._parse_expression()) is None:
+                raise ParserError("Missing expression after left round bracket", self.current_token.position)
+            self._expected_token(TokenType.RIGHT_ROUND_BRACKET)
+            return expression
+
+        return (self._parse_literal() or
+                self._parse_call_or_attribute_or_var())
+
+    # call_or_attribute_or_var = identifier, ["(", function_arguments, ")" | ".", identifier ];
+    def _parse_call_or_attribute_or_var(self) -> Optional[FunctionCallStatement | AttributeCall | Variable]:
+        if self.current_token.type != TokenType.IDENTIFIER:
+            return None
+
+        name = self.current_token.value
+        position = self.current_token.position
+        self._consume_token()
+
+        if self.current_token.type == TokenType.LEFT_ROUND_BRACKET:
+            self._consume_token()
+            if (function_args := self._parse_function_args()) is None:
+                raise ParserError("Missing function arguments", position)
+            self._expected_token(TokenType.RIGHT_ROUND_BRACKET)
+            return FunctionCallStatement(position, name, function_args)
+
+        if self.current_token.type == TokenType.DOT:
+            self._consume_token()
+            self._expected_token(TokenType.IDENTIFIER)
+            attr_name = self.current_token.value
+            return AttributeCall(name, attr_name)
+
+        return Variable(position, name)
+
+    # literal = int_literal |
+    #           float_literal |
+    #           boolean_literal |
+    #           string_literal;
+    def _parse_literal(self) -> Optional[Expression]:
+        if self.current_token.type.is_literal():
+            return (self._parse_int_literal() or
+                    self._parse_float_literal() or
+                    self._parse_boolean_literal() or
+                    self._parse_string_literal())
+
+        return None
+
+    def _parse_int_literal(self) -> Optional[Expression]:
+        if self.current_token.type == TokenType.INT_LITERAL:
+            return IntLiteral(self.current_token.value)
+        return None
+
+    def _parse_float_literal(self) -> Optional[Expression]:
+        if self.current_token.type == TokenType.FLOAT_LITERAL:
+            return FloatLiteral(self.current_token.value)
+        return None
+
+    def _parse_boolean_literal(self) -> Optional[Expression]:
+        if self.current_token.type == TokenType.BOOLEAN_LITERAL:
+            return BoolLiteral(self.current_token.value)
+        return None
+
+    def _parse_string_literal(self) -> Optional[Expression]:
+        if self.current_token.type == TokenType.STRING_LITERAL:
+            return StringLiteral(self.current_token.value)
+        return None
+
+    def _expected_token(self, token_type: TokenType):
+        if self.current_token.type != token_type:
+            raise ParserError("Unexpected token", self.current_token.position)

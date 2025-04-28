@@ -73,6 +73,30 @@ class TokenType(Enum):
                         TokenType.BOOL_KEYWORD,
                         TokenType.FLOAT_KEYWORD)
 
+    def is_relational_operator(self) -> bool:
+        return self in (TokenType.EQUAL_OPERATOR,
+                        TokenType.NOT_EQUAL_OPERATOR,
+                        TokenType.LESS_THAN_OR_EQUAL_OPERATOR,
+                        TokenType.GREATER_THAN_OR_EQUAL_OPERATOR,
+                        TokenType.LESS_THAN_OPERATOR,
+                        TokenType.GREATER_THAN_OPERATOR)
+
+    def is_multiplicative_operator(self) -> bool:
+        return self in (TokenType.MULTIPLICATION_OPERATOR,
+                        TokenType.DIVISION_OPERATOR,
+                        TokenType.MODULO_OPERATOR)
+
+    def is_additive_operator(self) -> bool:
+        return self in (TokenType.PLUS_OPERATOR,
+                        TokenType.MINUS_OPERATOR)
+
+    def is_literal(self) -> bool:
+        return self in (TokenType.INT_LITERAL,
+                        TokenType.FLOAT_LITERAL,
+                        TokenType.BOOLEAN_LITERAL,
+                        TokenType.STRING_LITERAL)
+
+
 class Symbols:
     keywords = {
         "if": TokenType.IF_KEYWORD,

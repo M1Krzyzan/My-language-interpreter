@@ -57,6 +57,14 @@ class Attribute:
     type: Type
     expression: Expression
 
+@dataclass
+class AttributeCall:
+    var_name: str
+    attr_name: str
+
+@dataclass
+class Variable(Statement):
+    name: str
 
 @dataclass
 class Parameter:
