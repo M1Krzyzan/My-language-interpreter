@@ -12,7 +12,7 @@ from src.errors.lexer_errors import (
     UnterminatedStringLiteralError,
     UnterminatedCommentBlockError
 )
-from src.lexer.lexer import Lexer
+from src.lexer.lexer import DefaultLexer
 from src.lexer.position import Position
 from src.lexer.source import Source
 from src.lexer.token_ import TokenType, Token, Symbols
@@ -21,7 +21,7 @@ from src.lexer.token_ import TokenType, Token, Symbols
 def get_tokens(input_text):
     stream = StringIO(input_text, None)
     source = Source(stream)
-    lexer = Lexer(source)
+    lexer = DefaultLexer(source)
     token = lexer.next_token()
     tokens = []
     while token.type != TokenType.ETX:
@@ -65,7 +65,7 @@ def test_build_identifier_token(input_text, expected_tokens):
 def test_should_not_allow_identifiers_to_be_too_long(input_text):
     stream = StringIO(input_text, None)
     source = Source(stream)
-    lexer = Lexer(source)
+    lexer = DefaultLexer(source)
 
     with pytest.raises(IdentifierTooLongError) as exception_info:
         lexer.next_token()
@@ -92,7 +92,7 @@ def test_build_string_literal_token(input_text, expected_tokens):
 def test_should_not_allow_string_literals_to_be_too_long(input_text):
     stream = StringIO(input_text, None)
     source = Source(stream)
-    lexer = Lexer(source)
+    lexer = DefaultLexer(source)
 
     with pytest.raises(StringTooLongError) as exception_info:
         lexer.next_token()
@@ -104,7 +104,7 @@ def test_should_not_allow_string_literals_to_be_too_long(input_text):
 def test_should_print_error_for_unclosed_string_literals(input_text):
     stream = StringIO(input_text, None)
     source = Source(stream)
-    lexer = Lexer(source)
+    lexer = DefaultLexer(source)
 
     with pytest.raises(UnterminatedStringLiteralError):
         lexer.next_token()
@@ -114,7 +114,7 @@ def test_should_print_error_for_unclosed_string_literals(input_text):
 def test_should_not_allow_unknown_escaped_characters(input_text):
     stream = StringIO(input_text, None)
     source = Source(stream)
-    lexer = Lexer(source)
+    lexer = DefaultLexer(source)
 
     with pytest.raises(UnexpectedEscapeCharacterError) as exception_info:
         lexer.next_token()
@@ -156,7 +156,7 @@ def test_each_leading_zero_is_separated_as_token(input_text, expected_tokens):
 def test_number_size_exceeded(input_text):
     stream = StringIO(input_text, None)
     source = Source(stream)
-    lexer = Lexer(source)
+    lexer = DefaultLexer(source)
 
     with pytest.raises(OverFlowError) as exception_info:
         lexer.next_token()
@@ -182,7 +182,7 @@ def test_build_float_literal_token(input_text, expected_tokens):
 def test_precision_limit_exceeded(input_text):
     stream = StringIO(input_text, None)
     source = Source(stream)
-    lexer = Lexer(source)
+    lexer = DefaultLexer(source)
 
     with pytest.raises(PrecisionTooHighError) as exception_info:
         lexer.next_token()
@@ -191,7 +191,7 @@ def test_precision_limit_exceeded(input_text):
 
 
 @pytest.mark.parametrize("input_text, expected_tokens", [
-    ("true", Token(TokenType.BOOLEAN_LITERAL, Position(1, 1), "true",)),
+    ("true", Token(TokenType.BOOLEAN_LITERAL, Position(1, 1), "true", )),
     ("false", Token(TokenType.BOOLEAN_LITERAL, Position(1, 1), "false"))
 ])
 def test_build_boolean_literal_token(input_text, expected_tokens):
@@ -227,7 +227,7 @@ def test_build_block_comment_token(input_text, expected_tokens):
 def test_should_raise_exception_for_unterminated_block_comment(input_text):
     stream = StringIO(input_text, None)
     source = Source(stream)
-    lexer = Lexer(source)
+    lexer = DefaultLexer(source)
 
     with pytest.raises(UnterminatedCommentBlockError):
         lexer.next_token()
@@ -237,7 +237,7 @@ def test_should_raise_exception_for_unterminated_block_comment(input_text):
 def test_should_not_allow_comments_to_be_too_long(input_text):
     stream = StringIO(input_text, None)
     source = Source(stream)
-    lexer = Lexer(source)
+    lexer = DefaultLexer(source)
 
     with pytest.raises(CommentTooLongError) as exception_info:
         lexer.next_token()
@@ -254,7 +254,7 @@ def test_build_end_of_text_token(input_text, expected_token):
     stream = StringIO(input_text, None)
     source = Source(stream)
 
-    lexer = Lexer(source)
+    lexer = DefaultLexer(source)
     token = lexer.next_token()
     while token.type != TokenType.ETX:
         token = lexer.next_token()
@@ -268,7 +268,7 @@ def test_build_end_of_text_token(input_text, expected_token):
 def test_should_always_give_end_of_text_token_after_end_of_text(input_text, expected_token):
     stream = StringIO(input_text, None)
     source = Source(stream)
-    lexer = Lexer(source)
+    lexer = DefaultLexer(source)
 
     lexer.next_token()  # Skip string literal token
     for _ in range(10):
@@ -292,7 +292,7 @@ def test_position_tracking(input_text, expected_tokens):
     stream = StringIO(input_text, None)
     source = Source(stream)
 
-    lexer = Lexer(source)
+    lexer = DefaultLexer(source)
     token = lexer.next_token()
     tokens = [token]
     while token.type != TokenType.ETX:

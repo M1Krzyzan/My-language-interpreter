@@ -136,13 +136,13 @@ void print_even_if_not_divisible_by_5(int x){
 ```
 #### Tworzenie własnych wyjątków i ich filtrowanie
 ```
-exception WrongNumberOfSidesError(message, number_of_sides, line) {
-    message: "Wrong number of sides - should be higher than 2: ";
+exception WrongNumberOfSidesError(int number_of_sides, int line) {
+    message: string = "Wrong number of sides - should be higher than 2: ";
     number_of_sides: int;
     line: int;
 }
 
-exception WrongNumberOfSidesError(message, length, line) {
+exception WrongNumberOfSidesError(float length, int line) {
     message: string = "Wrong length of side - should be higher than 0";
     length: int;
     line: int;
@@ -177,7 +177,7 @@ int x = 5; # Komentarz jednoliniowy
 
 program = {function_definition | exception_definition};
 
-function_declaration = function_return_type, identifier, "(", parameters, ")", statement_block;
+function_declaration = function_return_type, identifier, "(", [parameters], ")", statement_block;
 
 parameters = [parameter, {",", parameter}];
 
@@ -203,7 +203,6 @@ exception_definition = "exception", identifier,"(", parameters, ")", attributes;
 attributes = "{", {attribute_definition}, "}";
 
 attribute_definition = identifier, ":", simple_type, ["=", expression];
-
 
 while_statement = "while", "(", expression, ")", statement_block;
 

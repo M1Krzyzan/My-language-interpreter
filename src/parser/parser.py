@@ -2,7 +2,7 @@ from typing import Optional, List
 
 from src.ast.core_structures import *
 from src.ast.types import Type
-from src.errors.parser_error import ParserError
+from src.errors.parser_error import ParserError, UnexpectedToken, InternalParserError
 from src.lexer.lexer import Lexer
 from src.lexer.token_ import TokenType
 from src.ast.expressions import (
@@ -35,7 +35,6 @@ from src.ast.statemens import (
     Variable)
 
 
-
 # TODO: CHECK FOR EXCEPTION AND RAISE THEM IN WHOLE CODE - LIKE MISSING
 #  ELEMENT OF STATEMENT/EXPRESSION
 class Parser:
@@ -48,6 +47,7 @@ class Parser:
 
     def _consume_token(self):
         self.current_token = self.lexer.next_token()
+        self._skip_comments()
 
     # program = {function_definition | exception_definition};
     def _parse_program(self) -> Program:
@@ -56,41 +56,47 @@ class Parser:
 
         while declaration := (self._parse_function() or self._parse_exception()):
             if isinstance(declaration, Function):
+                if functions.get(declaration.name):
+                    raise ParserError("Duplicate function declaration", declaration.position)
                 functions[declaration.name] = declaration
             elif isinstance(declaration, Exception):
+                if exceptions.get(declaration.name):
+                    raise ParserError("Duplicate exception declaration", declaration.position)
                 exceptions[declaration.name] = declaration
             else:
-                raise ParserError("Illegal state", self.current_token.position)
+                raise InternalParserError(self.current_token.position)
 
-        if self.current_token.type != TokenType.ETX:
-            raise ParserError("Function or Exception declaration can not be parsed", self.current_token.position)
+        self._expected_token(TokenType.ETX)
 
         return Program(functions, exceptions)
 
-    # function_declaration = function_return_type, identifier, "(", parameters, ")", statement_block;
+    # function_declaration = function_return_type, identifier, "(", [parameters], ")", statement_block;
     def _parse_function(self):
         if not self.current_token.type.is_return_type():
             return None
+        position = self.current_token.position
 
         return_type = ReturnType(self.current_token.type)
-
         self._consume_token()
 
         self._expected_token(TokenType.IDENTIFIER)
         name = self.current_token.value
-
         self._consume_token()
 
         parameters = self._parse_parameters()
 
         statement_block = self._parse_statement_block()
 
-        return Function(name, parameters, return_type, statement_block)
+        return Function(position, name, parameters, return_type, statement_block)
 
-    # exception_definition = "exception", identifier,"(", parameters, ")", "{", {attribute_definition}, "}";
+    # exception_definition = "exception", identifier,"(", parameters, ")", attributes;
     def _parse_exception(self) -> Optional[Exception]:
         if self.current_token.type != TokenType.EXCEPTION_KEYWORD:
             return None
+        position = self.current_token.position
+        self._consume_token()
+
+        self._expected_token(TokenType.IDENTIFIER)
         name = self.current_token.value
         self._consume_token()
 
@@ -98,7 +104,7 @@ class Parser:
 
         attributes = self._parse_attributes()
 
-        return Exception(name, parameters, attributes)
+        return Exception(position, name, parameters, attributes)
 
     # parameters = [parameter, {",", parameter}];
     def _parse_parameters(self) -> List[Parameter]:
@@ -106,13 +112,13 @@ class Parser:
         self._consume_token()
 
         parameters = []
-
-        while parameter := self._parse_parameter():
+        if parameter := self._parse_parameter():
             parameters.append(parameter)
-            if self.current_token.type == TokenType.RIGHT_ROUND_BRACKET:
-                break
-            self._expected_token(TokenType.COMMA)
+
+        while self.current_token.type == TokenType.COMMA:
             self._consume_token()
+            if parameter := self._parse_parameter():
+                parameters.append(parameter)
 
         self._expected_token(TokenType.RIGHT_ROUND_BRACKET)
         self._consume_token()
@@ -125,12 +131,10 @@ class Parser:
             return None
 
         type = Type(self.current_token.type)
-
         self._consume_token()
 
         self._expected_token(TokenType.IDENTIFIER)
         name = self.current_token.value
-
         self._consume_token()
 
         return Parameter(name, type)
@@ -146,8 +150,6 @@ class Parser:
             statements.append(statement)
             if self.current_token.type == TokenType.RIGHT_CURLY_BRACKET:
                 break
-            self._expected_token(TokenType.SEMICOLON)
-            self._consume_token()
 
         self._expected_token(TokenType.RIGHT_CURLY_BRACKET)
         self._consume_token()
@@ -158,7 +160,7 @@ class Parser:
     #            while_statement |
     #            loop_control_statement |
     #            value_assigment_or_call |
-    #            reeturn_statement |
+    #            return_statement |
     #            try_catch_statement;
     def _parse_statement(self) -> Statement:
         return (self._parse_while_statement() or
@@ -174,82 +176,100 @@ class Parser:
     def _parse_if_statement(self) -> Optional[IfStatement]:
         if self.current_token.type != TokenType.IF_KEYWORD:
             return None
-        position = self.current_token.position
-        self._consume_token()
 
-        condition = self._parse_expression()
-
-        if_block = self._parse_statement_block()
-
-        elif_conditions = []
-        elif_blocks = []
-
-        while self.current_token.type != TokenType.ELIF_KEYWORD:
-            elif_condition = self._parse_expression()
-            elif_block = self._parse_statement_block()
-            elif_conditions.append(elif_condition)
-            elif_blocks.append(elif_block)
-
-        else_block = None
-        if self.current_token.type == TokenType.ELSE_KEYWORD:
-            else_block = self._parse_statement_block()
-
-        self._expected_token(TokenType.SEMICOLON)
-        self._consume_token()
-
-        return IfStatement(position,
-                           condition,
-                           if_block,
-                           elif_conditions,
-                           elif_blocks,
-                           else_block)
-
-    # while_statement = "while", "(", expression, ")", statement_block;
-    def _parse_while_statement(self) -> Optional[WhileStatement]:
-        if self.current_token.type != TokenType.WHILE_KEYWORD:
-            return None
         position = self.current_token.position
         self._consume_token()
 
         self._expected_token(TokenType.LEFT_ROUND_BRACKET)
         self._consume_token()
 
-        condition = self._parse_expression()
+        if (condition := self._parse_expression()) is None:
+            raise ParserError("Missing condition after if keyword", self.current_token.position)
+
+        self._expected_token(TokenType.RIGHT_ROUND_BRACKET)
+        self._consume_token()
+
+        if_block = self._parse_statement_block()
+
+        elif_clauses = []
+
+        while self.current_token.type == TokenType.ELIF_KEYWORD:
+            self._consume_token()
+            if (elif_condition := self._parse_expression()) is None:
+                raise ParserError("Missing condition after elif keyword", self.current_token.position)
+            elif_block = self._parse_statement_block()
+            elif_clauses.append((elif_condition, elif_block))
+
+        else_block = None
+        if self.current_token.type == TokenType.ELSE_KEYWORD:
+            else_block = self._parse_statement_block()
+
+        return IfStatement(position,
+                           condition,
+                           if_block,
+                           elif_clauses,
+                           else_block)
+
+    # while_statement = "while", "(", expression, ")", statement_block;
+    def _parse_while_statement(self) -> Optional[WhileStatement]:
+        if self.current_token.type != TokenType.WHILE_KEYWORD:
+            return None
+
+        position = self.current_token.position
+        self._consume_token()
+
+        self._expected_token(TokenType.LEFT_ROUND_BRACKET)
+        self._consume_token()
+
+        if (condition := self._parse_expression()) is None:
+            raise ParserError("Missing condition after while keyword", self.current_token.position)
+
+        self._expected_token(TokenType.RIGHT_ROUND_BRACKET)
+        self._consume_token()
 
         statement_block = self._parse_statement_block()
-
-        self._expected_token(TokenType.SEMICOLON)
-        self._consume_token()
 
         return WhileStatement(position, condition, statement_block)
 
     # loop_control_statement = ("break" | "continue"), ";";
     def _parse_loop_control_statement(self) -> Optional[LoopControlStatement]:
-        if not self.current_token.type in (TokenType.BREAK_KEYWORD, TokenType.CONTINUE_KEYWORD):
+        if not self.current_token.type.is_loop_control_keyword():
             return None
+
         position = self.current_token.position
         self._consume_token()
+        type = self.current_token.type
 
         self._expected_token(TokenType.SEMICOLON)
         self._consume_token()
 
-        return LoopControlStatement(position)
+        return LoopControlStatement(position, type)
 
-    # value_assigment_or_call = identifier, ("=", expression | "(", function_arguments, ")") ";";
+    # value_assigment_or_call = identifier, ("=", expression | "(", [function_arguments], ")") ";";
     def _parse_assignment_or_function_call(self) -> Optional[AssignmentStatement | FunctionCallStatement]:
         if self.current_token.type != TokenType.IDENTIFIER:
             return None
+
         name = self.current_token.value
         position = self.current_token.position
         self._consume_token()
 
         if self.current_token.type == TokenType.ASSIGNMENT:
             self._consume_token()
-            expression = self._parse_expression()
+            if (expression := self._parse_expression()) is None:
+                raise ParserError("Missing expression after assignment operator", self.current_token.position)
             self._expected_token(TokenType.SEMICOLON)
+            self._consume_token()
             return AssignmentStatement(position, name, expression)
 
+        self._expected_token(TokenType.LEFT_ROUND_BRACKET)
+        self._consume_token()
+
         function_arguments = self._parse_function_args()
+
+        self._expected_token(TokenType.RIGHT_ROUND_BRACKET)
+        self._consume_token()
+
         self._expected_token(TokenType.SEMICOLON)
         self._consume_token()
 
@@ -279,20 +299,17 @@ class Parser:
         try_block = self._parse_statement_block()
 
         catch_statements = []
+        self._expected_token(TokenType.CATCH_KEYWORD)
 
         while self.current_token.type != TokenType.CATCH_KEYWORD:
-            catch_statement = self._parse_catch_statement()
+            if (catch_statement := self._parse_catch_statement()) is None:
+                raise ParserError("Missing catch statement after try block", self.current_token.position)
             catch_statements.append(catch_statement)
-            self._consume_token()
 
         return TryCatchStatement(position, try_block, catch_statements)
 
     # function_arguments = [expression, {",", expression}];
-    def _parse_function_args(self) -> Optional[List[Expression]]:
-        if self.current_token.type != TokenType.LEFT_ROUND_BRACKET:
-            return None
-        self._consume_token()
-
+    def _parse_function_args(self) -> List[Expression]:
         expressions = []
 
         while expression := self._parse_expression():
@@ -301,9 +318,6 @@ class Parser:
                 break
             self._expected_token(TokenType.COMMA)
             self._consume_token()
-
-        self._expected_token(TokenType.RIGHT_ROUND_BRACKET)
-        self._consume_token()
 
         return expressions
 
@@ -330,7 +344,7 @@ class Parser:
 
         return CatchStatement(position, exception, name, block)
 
-    # atributes = "{", {attribute_definition}, "}";
+    # attributes = "{", {attribute_definition}, "}";
     def _parse_attributes(self) -> Optional[List[Attribute]]:
         if self.current_token.type != TokenType.LEFT_CURLY_BRACKET:
             return None
@@ -354,22 +368,30 @@ class Parser:
     def _parse_attribute(self) -> Optional[Attribute]:
         if self.current_token.type != TokenType.IDENTIFIER:
             return None
+
         name = self.current_token.value
         self._consume_token()
 
         self._expected_token(TokenType.COLON)
         self._consume_token()
 
-        type = Type(self.current_token.value)
+        if not self.current_token.type.is_simple_type():
+            raise ParserError("Expected simple type after ':'", self.current_token.position)
+        type = Type(self.current_token.type)
+        self._consume_token()
 
-        expression = self._parse_expression()
+        expression = None
+        if self.current_token.type == TokenType.ASSIGNMENT:
+            self._consume_token()
+            if (expression := self._parse_expression()) is None:
+                raise ParserError("Missing expression after assignment operator", self.current_token.position)
 
         return Attribute(name, type, expression)
 
     # expression = and_expression, {or_operator, and_expression};
     def _parse_expression(self) -> Optional[Expression]:
         if (left := self._parse_and_expression()) is None:
-            return left
+            return None
 
         while self.current_token.type == TokenType.OR_OPERATOR:
             self._consume_token()
@@ -394,7 +416,7 @@ class Parser:
 
     # relational_expression = additive_expression, [relational_operator, additive_expression];
     def _parse_relational_expression(self) -> Optional[Expression]:
-        if left := self._parse_additive_expression() is None:
+        if (left := self._parse_additive_expression()) is None:
             return left
 
         if (operator_type := self.current_token.type).is_relational_operator():
@@ -514,24 +536,36 @@ class Parser:
 
     def _parse_int_literal(self) -> Optional[Expression]:
         if self.current_token.type == TokenType.INT_LITERAL:
-            return IntLiteral(self.current_token.value)
+            literal = IntLiteral(self.current_token.value)
+            self._consume_token()
+            return literal
         return None
 
     def _parse_float_literal(self) -> Optional[Expression]:
         if self.current_token.type == TokenType.FLOAT_LITERAL:
-            return FloatLiteral(self.current_token.value)
+            literal = FloatLiteral(self.current_token.value)
+            self._consume_token()
+            return literal
         return None
 
     def _parse_boolean_literal(self) -> Optional[Expression]:
         if self.current_token.type == TokenType.BOOLEAN_LITERAL:
-            return BoolLiteral(self.current_token.value)
+            literal = BoolLiteral(self.current_token.value)
+            self._consume_token()
+            return literal
         return None
 
     def _parse_string_literal(self) -> Optional[Expression]:
         if self.current_token.type == TokenType.STRING_LITERAL:
-            return StringLiteral(self.current_token.value)
+            literal = StringLiteral(self.current_token.value)
+            self._consume_token()
+            return literal
         return None
 
     def _expected_token(self, token_type: TokenType):
         if self.current_token.type != token_type:
-            raise ParserError("Unexpected token", self.current_token.position)
+            raise UnexpectedToken(self.current_token.position, self.current_token.type, token_type)
+
+    def _skip_comments(self):
+        while self.current_token.type == TokenType.COMMENT:
+            self.current_token = self.lexer.next_token()

@@ -25,8 +25,6 @@ class TokenType(Enum):
 
     LEFT_ROUND_BRACKET = auto()
     RIGHT_ROUND_BRACKET = auto()
-    LEFT_SQUARE_BRACKET = auto()
-    RIGHT_SQUARE_BRACKET = auto()
     LEFT_CURLY_BRACKET = auto()
     RIGHT_CURLY_BRACKET = auto()
 
@@ -96,6 +94,10 @@ class TokenType(Enum):
                         TokenType.BOOLEAN_LITERAL,
                         TokenType.STRING_LITERAL)
 
+    def is_loop_control_keyword(self) -> bool:
+        return self in (TokenType.BREAK_KEYWORD,
+                        TokenType.CONTINUE_KEYWORD)
+
 
 class Symbols:
     keywords = {
@@ -126,8 +128,6 @@ class Symbols:
     single_char = {
         "(": TokenType.LEFT_ROUND_BRACKET,
         ")": TokenType.RIGHT_ROUND_BRACKET,
-        "[": TokenType.LEFT_SQUARE_BRACKET,
-        "]": TokenType.RIGHT_SQUARE_BRACKET,
         "{": TokenType.LEFT_CURLY_BRACKET,
         "}": TokenType.RIGHT_CURLY_BRACKET,
         ".": TokenType.DOT,

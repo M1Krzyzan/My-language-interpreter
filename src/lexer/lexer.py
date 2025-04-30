@@ -1,4 +1,5 @@
 import sys
+from abc import abstractmethod
 from typing import Optional
 
 from src.lexer.source import Source
@@ -16,8 +17,13 @@ from src.errors.lexer_errors import (
     LexerError
 )
 
-
 class Lexer:
+    @abstractmethod
+    def next_token(self) -> Token:
+        pass
+
+
+class DefaultLexer(Lexer):
     def __init__(
             self,
             source: Source,
