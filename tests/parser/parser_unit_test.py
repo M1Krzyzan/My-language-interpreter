@@ -312,3 +312,31 @@ def test_parse_exception():
                                               name="number",
                                               expression=IntLiteral(5))]
 
+def test_parse_function_raises_when_duplicate_exception_declaration():
+    """
+    input:
+
+    exception CustomException(int x){
+        number: int = 5;
+    }
+    exception CustomException(){}
+    """
+    input_tokens = token_generator.exception(
+        name="CustomException",
+        params=token_generator.parameters([(TokenType.INT_KEYWORD, "x")]),
+        attributes=token_generator.attribute(
+            name="number",
+            type=TokenType.INT_KEYWORD,
+            expression=[token_generator.get_token(TokenType.INT_LITERAL, 5)]
+        )
+    )
+    input_tokens += token_generator.exception(
+        name="CustomException"
+    )
+
+    input_program = token_generator.get_program(input_tokens)
+
+    with pytest.raises(DeclarationExistsError) as exception_info:
+        parse_program(input_program)
+
+    assert exception_info.value.message == 'Duplicate declaration - name="CustomException"'

@@ -102,14 +102,20 @@ def return_statement(expression: List[Token]) -> List[Token]:
     return tokens
 
 
-def exception(name: str, params: List[Token], attributes: List[Token]) -> List[Token]:
+def exception(name: str,
+              params: Optional[List[Token]] = None,
+              attributes: Optional[List[Token]] = None
+              ) -> List[Token]:
+
     tokens = [get_token(TokenType.EXCEPTION_KEYWORD),
               get_token(TokenType.IDENTIFIER, name),
               get_token(TokenType.LEFT_ROUND_BRACKET)]
-    tokens += params
+    if params:
+        tokens += params
     tokens.append(get_token(TokenType.RIGHT_ROUND_BRACKET))
     tokens.append(get_token(TokenType.LEFT_CURLY_BRACKET))
-    tokens += attributes
+    if attributes:
+        tokens += attributes
     tokens.append(get_token(TokenType.RIGHT_CURLY_BRACKET))
 
     return tokens
