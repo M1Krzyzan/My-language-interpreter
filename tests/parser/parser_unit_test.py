@@ -3,9 +3,10 @@ from typing import List
 import pytest
 import token_generator
 from src.ast.core_structures import Program
-from src.ast.statemens import StatementBlock
-from src.ast.types import ReturnType
-from src.errors.parser_error import UnexpectedToken, InternalParserError
+from src.ast.expressions import Expression, AdditiveExpression, IntLiteral
+from src.ast.statemens import StatementBlock, Parameter, Attribute
+from src.ast.types import ReturnType, Type
+from src.errors.parser_error import UnexpectedToken, DeclarationExistsError
 from src.lexer.token_ import TokenType, Token
 from src.parser.parser import Parser
 from tests.parser.mocked_lexer import MockedLexer
@@ -180,6 +181,31 @@ def test_parse_function_raises_when_missing_type_in_parameter(input_tokens):
                                             f', got "{TokenType.IDENTIFIER}"')
 
 
+def test_parse_function_should_not_allow_void_type_in_parameter():
+    """
+    input:
+
+    void func1(void x){
+        x = 5;
+    }
+    """
+    input_tokens = token_generator.function(
+        name="func1",
+        params=token_generator.parameters([(TokenType.VOID_KEYWORD, "x")]),
+        return_type=TokenType.VOID_KEYWORD,
+        statement_block=([
+        ])
+    )
+
+    input_program = token_generator.get_program(input_tokens)
+
+    with pytest.raises(UnexpectedToken) as exception_info:
+        parse_program(input_program)
+
+    assert exception_info.value.message == (f'Unexpected token - expected "{TokenType.RIGHT_ROUND_BRACKET}"'
+                                            f', got "{TokenType.VOID_KEYWORD}"')
+
+
 def test_parse_function_raises_when_missing_left_curly_bracket():
     """
     input:
@@ -227,3 +253,62 @@ def test_parse_function_raises_when_missing_right_curly_bracket():
 
     assert exception_info.value.message == (f'Unexpected token - expected "{TokenType.RIGHT_CURLY_BRACKET}"'
                                             f', got "{TokenType.ETX}"')
+
+
+def test_parse_function_raises_when_duplicate_function_declaration():
+    """
+    input:
+
+    void func1(int x){}
+    int func1(){}
+    """
+    input_tokens = token_generator.function(
+        name="func1",
+        params=token_generator.parameters([(TokenType.INT_KEYWORD, "x")]),
+        return_type=TokenType.VOID_KEYWORD
+    )
+    input_tokens += token_generator.function(
+        name="func1",
+        return_type=TokenType.INT_KEYWORD
+    )
+
+    input_program = token_generator.get_program(input_tokens)
+
+    with pytest.raises(DeclarationExistsError) as exception_info:
+        parse_program(input_program)
+
+    assert exception_info.value.message == 'Duplicate declaration - name="func1"'
+
+
+def test_parse_exception():
+    """
+    input:
+
+    exception CustomException(int x){
+        number: int = 5;
+    }
+    """
+    input_tokens = token_generator.exception(
+        name="CustomException",
+        params=token_generator.parameters([(TokenType.INT_KEYWORD, "x")]),
+        attributes=token_generator.attribute(
+            name="number",
+            type=TokenType.INT_KEYWORD,
+            expression=[token_generator.get_token(TokenType.INT_LITERAL, 5)]
+        )
+    )
+    input_program = token_generator.get_program(input_tokens)
+
+    program = parse_program(input_program)
+
+    assert len(program.exceptions) == 1
+    assert program.exceptions.get("CustomException", False)
+    exception = program.exceptions["CustomException"]
+
+    assert exception.name == "CustomException"
+    assert len(exception.parameters) == 1
+    assert exception.parameters == [Parameter(type=Type(TokenType.INT_KEYWORD), name="x")]
+    assert exception.attributes == [Attribute(type=Type(TokenType.INT_KEYWORD),
+                                              name="number",
+                                              expression=IntLiteral(5))]
+

@@ -24,3 +24,9 @@ class InternalParserError(ParserError):
     def __init__(self, position: Position):
         message = f'Expected Function or Exception declaration, got unexpected declaration type'
         super().__init__(message, position)
+
+
+class DeclarationExistsError(ParserError):
+    def __init__(self, position: Position, name: str):
+        message = f'Duplicate declaration - name="{name}"'
+        super().__init__(message, position)

@@ -2,7 +2,7 @@ from typing import Optional, List
 
 from src.ast.core_structures import *
 from src.ast.types import Type
-from src.errors.parser_error import ParserError, UnexpectedToken, InternalParserError
+from src.errors.parser_error import ParserError, UnexpectedToken, InternalParserError, DeclarationExistsError
 from src.lexer.lexer import Lexer
 from src.lexer.token_ import TokenType
 from src.ast.expressions import (
@@ -57,11 +57,11 @@ class Parser:
         while declaration := (self._parse_function() or self._parse_exception()):
             if isinstance(declaration, Function):
                 if functions.get(declaration.name):
-                    raise ParserError("Duplicate function declaration", declaration.position)
+                    raise DeclarationExistsError(declaration.position, declaration.name)
                 functions[declaration.name] = declaration
             elif isinstance(declaration, Exception):
                 if exceptions.get(declaration.name):
-                    raise ParserError("Duplicate exception declaration", declaration.position)
+                    raise DeclarationExistsError(declaration.position, declaration.name)
                 exceptions[declaration.name] = declaration
             else:
                 raise InternalParserError(self.current_token.position)
