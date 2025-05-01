@@ -106,7 +106,6 @@ def exception(name: str,
               params: Optional[List[Token]] = None,
               attributes: Optional[List[Token]] = None
               ) -> List[Token]:
-
     tokens = [get_token(TokenType.EXCEPTION_KEYWORD),
               get_token(TokenType.IDENTIFIER, name),
               get_token(TokenType.LEFT_ROUND_BRACKET)]
