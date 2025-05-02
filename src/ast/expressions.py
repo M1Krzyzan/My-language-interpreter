@@ -91,6 +91,7 @@ class MultiplicativeExpression(Expression):
                 self.right == other.right and
                 self.operator == other.operator)
 
+
 @dataclass
 class AttributeCall(Expression):
     var_name: str
@@ -100,6 +101,7 @@ class AttributeCall(Expression):
         return (self.var_name == other.var_name and
                 self.attr_name == other.attr_name)
 
+
 @dataclass
 class Variable(Expression):
     name: str
@@ -107,9 +109,11 @@ class Variable(Expression):
     def __eq__(self, other):
         return self.name == other.name
 
+
 @dataclass
 class BoolLiteral(Expression):
     value: bool
+
     def __eq__(self, other):
         return self.value == other.value
 
@@ -128,6 +132,7 @@ class IntLiteral(Expression):
 
     def __eq__(self, other):
         return self.value == other.value
+
 
 @dataclass
 class StringLiteral(Expression):

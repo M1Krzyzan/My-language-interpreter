@@ -131,6 +131,7 @@ def attribute(name: str, type: TokenType, expression: List[Token] = None) -> Lis
 
     return tokens
 
+
 def attributes(attribute_list: List[List[Token]]) -> List[Token]:
     tokens = []
 
@@ -138,6 +139,7 @@ def attributes(attribute_list: List[List[Token]]) -> List[Token]:
         tokens += attr
 
     return tokens
+
 
 def catch(catch_exception: List[Token], catch_block: List[Token]) -> List[Token]:
     tokens = [get_token(TokenType.CATCH_KEYWORD),
@@ -162,4 +164,3 @@ def try_catch(try_block: List[Token], catch_statements: List[List[Token]]) -> Li
         tokens += catch_statement
 
     return tokens
-

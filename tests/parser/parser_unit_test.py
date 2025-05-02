@@ -774,7 +774,7 @@ def test_parse_if_statement():
     assert isinstance(elif_block2, StatementBlock)
     assert len(elif_block2.statements) == 1
     assert elif_block2.statements[0] == LoopControlStatement(
-        position=Position(1,1),
+        position=Position(1, 1),
         type=LoopControlType.CONTINUE
     )
 
@@ -782,7 +782,7 @@ def test_parse_if_statement():
     assert isinstance(else_block, StatementBlock)
     assert len(parsed_if_statement.else_block.statements) == 1
     assert parsed_if_statement.else_block.statements[0] == LoopControlStatement(
-        position=Position(1,1),
+        position=Position(1, 1),
         type=LoopControlType.BREAK
     )
 
@@ -837,7 +837,7 @@ def test_parse_try_catch_statement():
                          token_generator.get_token(TokenType.IDENTIFIER, "e")],
         catch_block=[token_generator.get_token(TokenType.IDENTIFIER, "a"),
                      token_generator.get_token(TokenType.ASSIGNMENT),
-                     token_generator.get_token(TokenType.INT_LITERAL,0),
+                     token_generator.get_token(TokenType.INT_LITERAL, 0),
                      token_generator.get_token(TokenType.SEMICOLON)]
     )
     catch2 = token_generator.catch(
@@ -887,8 +887,8 @@ def test_parse_try_catch_statement():
 
     assert isinstance(catch_statement1, CatchStatement)
     assert catch_statement1 == CatchStatement(
-        exception = "CustomException",
-        name = "e",
+        exception="CustomException",
+        name="e",
         block=StatementBlock([AssignmentStatement(
             position=Position(1, 1),
             expression=IntLiteral(0),
@@ -899,8 +899,8 @@ def test_parse_try_catch_statement():
 
     assert isinstance(catch_statement2, CatchStatement)
     assert catch_statement2 == CatchStatement(
-        exception = "Exception",
-        name = "e",
+        exception="Exception",
+        name="e",
         block=StatementBlock([FunctionCallStatement(
             position=Position(1, 1),
             name="print",

@@ -45,6 +45,7 @@ class WhileStatement(Statement):
         return (self.condition == other.condition and
                 self.block == other.block)
 
+
 class LoopControlType(Enum):
     BREAK = auto()
     CONTINUE = auto()
@@ -56,7 +57,6 @@ class LoopControlStatement(Statement):
 
     def __eq__(self, other):
         return self.type == other.type
-
 
 
 @dataclass
@@ -98,6 +98,7 @@ class Attribute:
         return (self.name == other.name and
                 self.type == other.type and
                 self.expression == other.expression)
+
 
 @dataclass
 class Parameter:

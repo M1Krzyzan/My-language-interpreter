@@ -98,7 +98,6 @@ class TokenType(Enum):
         return self in (TokenType.BREAK_KEYWORD,
                         TokenType.CONTINUE_KEYWORD)
 
-
     def __str__(self):
         return self.name
 
