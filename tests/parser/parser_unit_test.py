@@ -1,15 +1,14 @@
-from typing import List
-
 import pytest
 import token_generator
 from src.ast.core_structures import Program
-from src.ast.expressions import IntLiteral, BoolLiteral, RelationalExpression, Variable, AdditiveExpression, \
-    MultiplicativeExpression
-from src.ast.statemens import StatementBlock, Parameter, Attribute, AssignmentStatement, IfStatement, ReturnStatement, \
-    FunctionCallStatement
+from src.ast.expressions import *
+from src.ast.statemens import *
 from src.ast.types import ReturnType, Type
-from src.errors.parser_error import UnexpectedToken, DeclarationExistsError, ExpectedExpressionError, \
-    ExpectedSimpleTypeError
+from src.errors.parser_error import (
+    UnexpectedToken,
+    DeclarationExistsError,
+    ExpectedExpressionError,
+    ExpectedSimpleTypeError, ExpectedConditionError)
 from src.lexer.position import Position
 from src.lexer.token_ import TokenType, Token
 from src.parser.parser import Parser
@@ -438,6 +437,565 @@ def test_parse_return_statement_with_complex_arithmetic_expression():
     assert additive_expression.right == IntLiteral(4)
 
 
+def test_parse_conditional_expression():
+    """
+    input:
+
+    bool func(int x, int y){
+        return not(x == 1) or y != 9 and x < 10;
+    }
+    """
+    input_tokens = token_generator.function(
+        name="func",
+        return_type=TokenType.BOOL_KEYWORD,
+        params=token_generator.parameters([(TokenType.INT_KEYWORD, "x"),
+                                           (TokenType.INT_KEYWORD, "y")]),
+        statement_block=[token_generator.get_token(TokenType.RETURN_KEYWORD),
+                         token_generator.get_token(TokenType.NEGATION_OPERATOR),
+                         token_generator.get_token(TokenType.LEFT_ROUND_BRACKET),
+                         token_generator.get_token(TokenType.IDENTIFIER, "x"),
+                         token_generator.get_token(TokenType.EQUAL_OPERATOR),
+                         token_generator.get_token(TokenType.INT_LITERAL, 1),
+                         token_generator.get_token(TokenType.RIGHT_ROUND_BRACKET),
+                         token_generator.get_token(TokenType.OR_OPERATOR),
+                         token_generator.get_token(TokenType.IDENTIFIER, "y"),
+                         token_generator.get_token(TokenType.NOT_EQUAL_OPERATOR),
+                         token_generator.get_token(TokenType.INT_LITERAL, 9),
+                         token_generator.get_token(TokenType.AND_OPERATOR),
+                         token_generator.get_token(TokenType.IDENTIFIER, "x"),
+                         token_generator.get_token(TokenType.LESS_THAN_OPERATOR),
+                         token_generator.get_token(TokenType.INT_LITERAL, 10),
+                         token_generator.get_token(TokenType.SEMICOLON)]
+    )
+    input_program = token_generator.get_program(input_tokens)
+
+    program = parse_program(input_program)
+
+    assert len(program.functions) == 1
+    assert program.functions.get("func")
+    func = program.functions["func"]
+
+    assert len(func.statement_block.statements) == 1
+    return_statement = func.statement_block.statements[0]
+    assert isinstance(return_statement, ReturnStatement)
+
+    or_expression = return_statement.expression
+    assert isinstance(or_expression, OrExpression)
+    assert or_expression.left == NegatedExpression(expression=RelationalExpression(left=Variable("x"),
+                                                                                   right=IntLiteral(1),
+                                                                                   operator=TokenType.EQUAL_OPERATOR))
+
+    and_expression = or_expression.right
+    assert isinstance(and_expression, AndExpression)
+    assert and_expression.left == RelationalExpression(left=Variable("y"),
+                                                       right=IntLiteral(9),
+                                                       operator=TokenType.NOT_EQUAL_OPERATOR)
+    assert and_expression.right == RelationalExpression(left=Variable("x"),
+                                                        right=IntLiteral(10),
+                                                        operator=TokenType.LESS_THAN_OPERATOR)
+
+
+def test_parse_unary_minus_expression():
+    """
+    input:
+
+    int func(){
+        return -1;
+    }
+    """
+    input_tokens = token_generator.function(
+        name="func",
+        return_type=TokenType.INT_KEYWORD,
+        statement_block=[token_generator.get_token(TokenType.RETURN_KEYWORD),
+                         token_generator.get_token(TokenType.MINUS_OPERATOR),
+                         token_generator.get_token(TokenType.INT_LITERAL, 1),
+                         token_generator.get_token(TokenType.SEMICOLON)]
+    )
+    input_program = token_generator.get_program(input_tokens)
+
+    program = parse_program(input_program)
+
+    assert len(program.functions) == 1
+    assert program.functions.get("func")
+    func = program.functions["func"]
+
+    assert len(func.statement_block.statements) == 1
+    return_statement = func.statement_block.statements[0]
+    assert isinstance(return_statement, ReturnStatement)
+
+    unary_minus_expression = return_statement.expression
+    assert isinstance(unary_minus_expression, UnaryMinusExpression)
+    assert unary_minus_expression.expression == IntLiteral(1)
+
+
+def test_parse_casted_expression():
+    """
+    input:
+
+    string func(){
+        return -1 to string;
+    }
+    """
+    input_tokens = token_generator.function(
+        name="func",
+        return_type=TokenType.STRING_KEYWORD,
+        statement_block=[token_generator.get_token(TokenType.RETURN_KEYWORD),
+                         token_generator.get_token(TokenType.MINUS_OPERATOR),
+                         token_generator.get_token(TokenType.INT_LITERAL, 1),
+                         token_generator.get_token(TokenType.TO_KEYWORD),
+                         token_generator.get_token(TokenType.STRING_KEYWORD),
+                         token_generator.get_token(TokenType.SEMICOLON)]
+    )
+    input_program = token_generator.get_program(input_tokens)
+
+    program = parse_program(input_program)
+
+    assert len(program.functions) == 1
+    assert program.functions.get("func")
+    func = program.functions["func"]
+
+    assert len(func.statement_block.statements) == 1
+    return_statement = func.statement_block.statements[0]
+    assert isinstance(return_statement, ReturnStatement)
+
+    casted_expression = return_statement.expression
+    assert isinstance(casted_expression, CastedExpression)
+    assert casted_expression.to_type == Type(TokenType.STRING_KEYWORD)
+
+    unary_minus_expression = casted_expression.expression
+    assert isinstance(unary_minus_expression, UnaryMinusExpression)
+    assert unary_minus_expression.expression == IntLiteral(1)
+
+
+def test_parse_while_statement():
+    """
+    input:
+
+    void func(int x){
+        while(x > 0){
+            rand_func();
+            x = x - 1;
+            while(y){}
+        }
+    }
+    """
+    input_tokens = token_generator.function(
+        name="func",
+        return_type=TokenType.VOID_KEYWORD,
+        statement_block=token_generator.while_statement(
+            condition=[token_generator.get_token(TokenType.IDENTIFIER, "x"),
+                       token_generator.get_token(TokenType.GREATER_THAN_OPERATOR),
+                       token_generator.get_token(TokenType.INT_LITERAL, 0)],
+            statement_block=[token_generator.get_token(TokenType.IDENTIFIER, "rand_func"),
+                             token_generator.get_token(TokenType.LEFT_ROUND_BRACKET),
+                             token_generator.get_token(TokenType.RIGHT_ROUND_BRACKET),
+                             token_generator.get_token(TokenType.SEMICOLON),
+                             token_generator.get_token(TokenType.IDENTIFIER, "x"),
+                             token_generator.get_token(TokenType.ASSIGNMENT),
+                             token_generator.get_token(TokenType.IDENTIFIER, "x"),
+                             token_generator.get_token(TokenType.MINUS_OPERATOR),
+                             token_generator.get_token(TokenType.INT_LITERAL, 1),
+                             token_generator.get_token(TokenType.SEMICOLON),
+                             token_generator.get_token(TokenType.WHILE_KEYWORD),
+                             token_generator.get_token(TokenType.LEFT_ROUND_BRACKET),
+                             token_generator.get_token(TokenType.IDENTIFIER, "y"),
+                             token_generator.get_token(TokenType.RIGHT_ROUND_BRACKET),
+                             token_generator.get_token(TokenType.LEFT_CURLY_BRACKET),
+                             token_generator.get_token(TokenType.RIGHT_CURLY_BRACKET)]
+        )
+    )
+    input_program = token_generator.get_program(input_tokens)
+
+    program = parse_program(input_program)
+
+    assert len(program.functions) == 1
+    assert program.functions.get("func")
+    func = program.functions["func"]
+
+    assert len(func.statement_block.statements) == 1
+    while_statement = func.statement_block.statements[0]
+    assert isinstance(while_statement, WhileStatement)
+
+    condition = while_statement.condition
+    assert isinstance(condition, RelationalExpression)
+    assert condition.left == Variable("x")
+    assert condition.right == IntLiteral(0)
+    assert condition.operator == TokenType.GREATER_THAN_OPERATOR
+
+    statement_block = while_statement.block
+    assert isinstance(statement_block, StatementBlock)
+    assert len(statement_block.statements) == 3
+
+    assert statement_block.statements[0] == FunctionCallStatement(name="rand_func",
+                                                                  arguments=[],
+                                                                  position=Position(1, 1))
+
+    assert statement_block.statements[1] == AssignmentStatement(
+        name="x",
+        expression=AdditiveExpression(left=Variable("x"),
+                                      right=IntLiteral(1),
+                                      operator=TokenType.MINUS_OPERATOR),
+        position=Position(1, 1)
+    )
+
+    assert statement_block.statements[2] == WhileStatement(condition=Variable("y"),
+                                                           block=StatementBlock([]),
+                                                           position=Position(1, 1))
+
+
+def test_parse_while_statement_raises_when_condition_missing():
+    """
+        input:
+
+        void func(){
+            while(){
+                rand_func();
+            }
+        }
+        """
+    input_tokens = token_generator.function(
+        name="func",
+        return_type=TokenType.VOID_KEYWORD,
+        statement_block=token_generator.while_statement(
+            condition=[],
+            statement_block=[token_generator.get_token(TokenType.IDENTIFIER, "rand_func"),
+                             token_generator.get_token(TokenType.LEFT_ROUND_BRACKET),
+                             token_generator.get_token(TokenType.RIGHT_ROUND_BRACKET),
+                             token_generator.get_token(TokenType.SEMICOLON)]
+        )
+    )
+    input_program = token_generator.get_program(input_tokens)
+
+    with pytest.raises(ExpectedConditionError) as exception_info:
+        parse_program(input_program)
+
+    assert exception_info.value.message == f"Missing condition after {TokenType.WHILE_KEYWORD}"
+
+
+def test_parse_if_statement():
+    """
+    input:
+
+    void main(){
+        if(x == 5){
+            a = x;
+        }elif(x == 4){
+            b = x;
+        }elif(x == 3){
+            continue;
+        }else{
+            break;
+        }
+    }
+    """
+    if_statement = token_generator.if_statement(
+        condition=[token_generator.get_token(TokenType.IDENTIFIER, "x"),
+                   token_generator.get_token(TokenType.EQUAL_OPERATOR),
+                   token_generator.get_token(TokenType.INT_LITERAL, 5)],
+        if_block=[token_generator.get_token(TokenType.IDENTIFIER, "a"),
+                  token_generator.get_token(TokenType.ASSIGNMENT),
+                  token_generator.get_token(TokenType.IDENTIFIER, "x"),
+                  token_generator.get_token(TokenType.SEMICOLON)]
+    )
+    elif_statement1 = token_generator.elif_statement(
+        condition=[token_generator.get_token(TokenType.IDENTIFIER, "x"),
+                   token_generator.get_token(TokenType.EQUAL_OPERATOR),
+                   token_generator.get_token(TokenType.INT_LITERAL, 4)],
+        elif_block=[token_generator.get_token(TokenType.IDENTIFIER, "b"),
+                    token_generator.get_token(TokenType.ASSIGNMENT),
+                    token_generator.get_token(TokenType.IDENTIFIER, "x"),
+                    token_generator.get_token(TokenType.SEMICOLON)]
+    )
+    elif_statement2 = token_generator.elif_statement(
+        condition=[token_generator.get_token(TokenType.IDENTIFIER, "x"),
+                   token_generator.get_token(TokenType.EQUAL_OPERATOR),
+                   token_generator.get_token(TokenType.INT_LITERAL, 3)],
+        elif_block=[token_generator.get_token(TokenType.CONTINUE_KEYWORD),
+                    token_generator.get_token(TokenType.SEMICOLON)]
+    )
+
+    else_block = token_generator.else_statement([
+        token_generator.get_token(TokenType.BREAK_KEYWORD),
+        token_generator.get_token(TokenType.SEMICOLON)
+    ])
+
+    input_tokens = token_generator.function(
+        name="main",
+        params=token_generator.parameters([]),
+        return_type=TokenType.VOID_KEYWORD,
+        statement_block=if_statement + elif_statement1 + elif_statement2 + else_block
+    )
+    input_program = token_generator.get_program(input_tokens)
+
+    program = parse_program(input_program)
+
+    assert len(program.functions["main"].statement_block.statements) == 1
+    parsed_if_statement = program.functions["main"].statement_block.statements[0]
+    assert isinstance(parsed_if_statement, IfStatement)
+
+    assert parsed_if_statement.condition == RelationalExpression(
+        left=Variable("x"),
+        right=IntLiteral(5),
+        operator=TokenType.EQUAL_OPERATOR
+    )
+    assert len(parsed_if_statement.if_block.statements) == 1
+    assert parsed_if_statement.if_block.statements[0] == AssignmentStatement(
+        position=Position(1, 1),
+        expression=Variable("x"),
+        name='a'
+    )
+
+    assert len(parsed_if_statement.elif_statement) == 2
+    elif_condition1, elif_block1 = parsed_if_statement.elif_statement[0]
+    elif_condition2, elif_block2 = parsed_if_statement.elif_statement[1]
+
+    assert isinstance(elif_condition1, RelationalExpression)
+    assert elif_condition1 == RelationalExpression(
+        left=Variable("x"),
+        right=IntLiteral(4),
+        operator=TokenType.EQUAL_OPERATOR
+    )
+
+    assert isinstance(elif_block1, StatementBlock)
+    assert len(elif_block1.statements) == 1
+    assert elif_block1.statements[0] == AssignmentStatement(
+        position=Position(1, 1),
+        expression=Variable("x"),
+        name='b'
+    )
+
+    assert isinstance(elif_condition2, RelationalExpression)
+    assert elif_condition2 == RelationalExpression(
+        left=Variable("x"),
+        right=IntLiteral(3),
+        operator=TokenType.EQUAL_OPERATOR
+    )
+
+    assert isinstance(elif_block2, StatementBlock)
+    assert len(elif_block2.statements) == 1
+    assert elif_block2.statements[0] == LoopControlStatement(
+        position=Position(1,1),
+        type=LoopControlType.CONTINUE
+    )
+
+    else_block = parsed_if_statement.else_block
+    assert isinstance(else_block, StatementBlock)
+    assert len(parsed_if_statement.else_block.statements) == 1
+    assert parsed_if_statement.else_block.statements[0] == LoopControlStatement(
+        position=Position(1,1),
+        type=LoopControlType.BREAK
+    )
+
+
+def test_parse_if_statement_raises_when_condition_missing():
+    """
+    input:
+
+    void main(){
+        if(){
+            a = x;
+        }
+    }
+    """
+    if_statement = token_generator.if_statement(
+        condition=[],
+        if_block=[token_generator.get_token(TokenType.IDENTIFIER, "a"),
+                  token_generator.get_token(TokenType.ASSIGNMENT),
+                  token_generator.get_token(TokenType.IDENTIFIER, "x"),
+                  token_generator.get_token(TokenType.SEMICOLON)]
+    )
+    input_tokens = token_generator.function(
+        name="main",
+        params=token_generator.parameters([]),
+        return_type=TokenType.VOID_KEYWORD,
+        statement_block=if_statement
+    )
+    input_program = token_generator.get_program(input_tokens)
+
+    with pytest.raises(ExpectedConditionError) as exception_info:
+        parse_program(input_program)
+
+    assert exception_info.value.message == f"Missing condition after {TokenType.IF_KEYWORD}"
+
+
+def test_parse_try_catch_statement():
+    """
+    input:
+
+    void main(){
+        try{
+            a = x;
+        }catch (CustomException e){
+            a = 0;
+        }catch (Exception e){
+            print(e.message);
+        }
+    }
+    """
+    catch1 = token_generator.catch(
+        catch_exception=[token_generator.get_token(TokenType.IDENTIFIER, "CustomException"),
+                         token_generator.get_token(TokenType.IDENTIFIER, "e")],
+        catch_block=[token_generator.get_token(TokenType.IDENTIFIER, "a"),
+                     token_generator.get_token(TokenType.ASSIGNMENT),
+                     token_generator.get_token(TokenType.INT_LITERAL,0),
+                     token_generator.get_token(TokenType.SEMICOLON)]
+    )
+    catch2 = token_generator.catch(
+        catch_exception=[token_generator.get_token(TokenType.IDENTIFIER, "Exception"),
+                         token_generator.get_token(TokenType.IDENTIFIER, "e")],
+        catch_block=[token_generator.get_token(TokenType.IDENTIFIER, "print"),
+                     token_generator.get_token(TokenType.LEFT_ROUND_BRACKET),
+                     token_generator.get_token(TokenType.IDENTIFIER, "e"),
+                     token_generator.get_token(TokenType.DOT),
+                     token_generator.get_token(TokenType.IDENTIFIER, "message"),
+                     token_generator.get_token(TokenType.RIGHT_ROUND_BRACKET),
+                     token_generator.get_token(TokenType.SEMICOLON)]
+    )
+    input_tokens = token_generator.function(
+        name="main",
+        return_type=TokenType.VOID_KEYWORD,
+        statement_block=token_generator.try_catch(
+            try_block=[
+                token_generator.get_token(TokenType.IDENTIFIER, "a"),
+                token_generator.get_token(TokenType.ASSIGNMENT),
+                token_generator.get_token(TokenType.IDENTIFIER, "x"),
+                token_generator.get_token(TokenType.SEMICOLON)
+            ],
+            catch_statements=[catch1, catch2]
+        )
+    )
+    input_program = token_generator.get_program(input_tokens)
+
+    program = parse_program(input_program)
+
+    assert len(program.functions["main"].statement_block.statements) == 1
+    parsed_try_statement = program.functions["main"].statement_block.statements[0]
+    assert isinstance(parsed_try_statement, TryCatchStatement)
+
+    try_block = parsed_try_statement.try_block
+    assert isinstance(try_block, StatementBlock)
+    assert len(try_block.statements) == 1
+    assert try_block.statements[0] == AssignmentStatement(
+        position=Position(1, 1),
+        expression=Variable("x"),
+        name='a'
+    )
+
+    assert len(parsed_try_statement.catch_statements) == 2
+    catch_statement1 = parsed_try_statement.catch_statements[0]
+    catch_statement2 = parsed_try_statement.catch_statements[1]
+
+    assert isinstance(catch_statement1, CatchStatement)
+    assert catch_statement1 == CatchStatement(
+        exception = "CustomException",
+        name = "e",
+        block=StatementBlock([AssignmentStatement(
+            position=Position(1, 1),
+            expression=IntLiteral(0),
+            name='a'
+        )]),
+        position=Position(1, 1),
+    )
+
+    assert isinstance(catch_statement2, CatchStatement)
+    assert catch_statement2 == CatchStatement(
+        exception = "Exception",
+        name = "e",
+        block=StatementBlock([FunctionCallStatement(
+            position=Position(1, 1),
+            name="print",
+            arguments=[AttributeCall(
+                var_name="e",
+                attr_name="message"
+            )]
+        )]),
+        position=Position(1, 1),
+    )
+
+
+def test_parse_return_statement_raises_when_missing_semicolon():
+    """
+    input:
+
+    int func(int x){
+        return x
+    }
+    """
+    input_tokens = token_generator.function(
+        name="func",
+        return_type=TokenType.INT_KEYWORD,
+        params=token_generator.parameters([(TokenType.INT_KEYWORD, "x")]),
+        statement_block=[token_generator.get_token(TokenType.RETURN_KEYWORD),
+                         token_generator.get_token(TokenType.IDENTIFIER, "x")]
+    )
+    input_program = token_generator.get_program(input_tokens)
+
+    with pytest.raises(UnexpectedToken) as exception_info:
+        parse_program(input_program)
+
+    assert exception_info.value.message == (f'Unexpected token - expected "{TokenType.SEMICOLON}"'
+                                            f', got "{TokenType.RIGHT_CURLY_BRACKET}"')
+
+
+@pytest.mark.parametrize("operator", [
+    TokenType.PLUS_OPERATOR,
+    TokenType.MINUS_OPERATOR,
+    TokenType.DIVISION_OPERATOR,
+    TokenType.MODULO_OPERATOR,
+    TokenType.MULTIPLICATION_OPERATOR,
+    TokenType.OR_OPERATOR,
+    TokenType.AND_OPERATOR
+])
+def test_parse_expression_raises_when_missing_right_expression(operator):
+    """
+    input example:
+    int func(){
+        return 1 +;
+    }
+    """
+    input_tokens = token_generator.function(
+        name="func",
+        return_type=TokenType.INT_KEYWORD,
+        statement_block=[token_generator.get_token(TokenType.RETURN_KEYWORD),
+                         token_generator.get_token(TokenType.INT_LITERAL, 1),
+                         token_generator.get_token(operator),
+                         token_generator.get_token(TokenType.SEMICOLON)]
+    )
+    input_program = token_generator.get_program(input_tokens)
+
+    with pytest.raises(ExpectedExpressionError) as exception_info:
+        parse_program(input_program)
+
+    assert exception_info.value.message == f'Missing expression after {operator}'
+
+
+@pytest.mark.parametrize("operator", [
+    TokenType.LEFT_ROUND_BRACKET,
+    TokenType.MINUS_OPERATOR,
+    TokenType.NEGATION_OPERATOR
+])
+def test_parse_expression_raises_when_missing_expression_after_unary_operator(operator):
+    """
+    input example:
+    int func(){
+        return not;
+    }
+    """
+    input_tokens = token_generator.function(
+        name="func",
+        return_type=TokenType.INT_KEYWORD,
+        statement_block=[token_generator.get_token(TokenType.RETURN_KEYWORD),
+                         token_generator.get_token(operator),
+                         token_generator.get_token(TokenType.SEMICOLON)]
+    )
+    input_program = token_generator.get_program(input_tokens)
+
+    with pytest.raises(ExpectedExpressionError) as exception_info:
+        parse_program(input_program)
+
+    assert exception_info.value.message == f'Missing expression after {operator}'
+
+
 def test_parse_exception():
     """
     input:
@@ -725,49 +1283,3 @@ def test_parse_exception_should_not_allow_void_type_in_attributes():
 
     with pytest.raises(ExpectedSimpleTypeError):
         parse_program(input_program)
-
-
-def test_parse_if_statement():
-    """
-    input:
-
-    void main(){
-        if(x == 5){
-            a = x;
-        }
-    }
-    """
-    if_statement = token_generator.if_statement(
-        condition=[token_generator.get_token(TokenType.IDENTIFIER, "x"),
-                   token_generator.get_token(TokenType.EQUAL_OPERATOR),
-                   token_generator.get_token(TokenType.INT_LITERAL, 5)],
-        if_block=[token_generator.get_token(TokenType.IDENTIFIER, "a"),
-                  token_generator.get_token(TokenType.ASSIGNMENT),
-                  token_generator.get_token(TokenType.IDENTIFIER, "x"),
-                  token_generator.get_token(TokenType.SEMICOLON)]
-    )
-    input_tokens = token_generator.function(
-        name="main",
-        params=token_generator.parameters([]),
-        return_type=TokenType.VOID_KEYWORD,
-        statement_block=if_statement
-    )
-    input_program = token_generator.get_program(input_tokens)
-
-    program = parse_program(input_program)
-
-    assert len(program.functions["main"].statement_block.statements) == 1
-    parsed_if_statement = program.functions["main"].statement_block.statements[0]
-    assert isinstance(parsed_if_statement, IfStatement)
-
-    assert parsed_if_statement.condition == RelationalExpression(
-        left=Variable("x"),
-        right=IntLiteral(5),
-        operator=TokenType.EQUAL_OPERATOR
-    )
-    assert len(parsed_if_statement.if_block.statements) == 1
-    assert parsed_if_statement.if_block.statements[0] == AssignmentStatement(
-        position=Position(1, 1),
-        expression=Variable("x"),
-        name='a'
-    )

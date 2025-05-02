@@ -1,39 +1,9 @@
-from typing import Optional, List
-
 from src.ast.core_structures import *
-from src.ast.types import Type
 from src.errors.parser_error import ParserError, UnexpectedToken, InternalParserError, DeclarationExistsError, \
-    ExpectedSimpleTypeError, ExpectedExpressionError
+    ExpectedSimpleTypeError, ExpectedExpressionError, ExpectedConditionError
 from src.lexer.lexer import Lexer
-from src.lexer.token_ import TokenType
-from src.ast.expressions import (
-    Expression,
-    AndExpression,
-    RelationalExpression,
-    AdditiveExpression,
-    MultiplicativeExpression,
-    CastedExpression,
-    OrExpression,
-    NegatedExpression,
-    UnaryMinusExpression,
-    Variable,
-    IntLiteral,
-    FloatLiteral,
-    BoolLiteral,
-    StringLiteral)
-from src.ast.statemens import (
-    Exception,
-    Statement,
-    WhileStatement,
-    IfStatement,
-    LoopControlStatement,
-    AssignmentStatement,
-    FunctionCallStatement,
-    ReturnStatement,
-    TryCatchStatement,
-    CatchStatement,
-    Attribute,
-    AttributeCall)
+from src.ast.expressions import *
+from src.ast.statemens import *
 
 
 # TODO: CHECK FOR EXCEPTION AND RAISE THEM IN WHOLE CODE - LIKE MISSING
@@ -185,30 +155,31 @@ class Parser:
         self._consume_token()
 
         if (condition := self._parse_expression()) is None:
-            raise ParserError("Missing condition after if keyword", self.current_token.position)
+            raise ExpectedConditionError(self.current_token.position, TokenType.IF_KEYWORD)
 
         self._expected_token(TokenType.RIGHT_ROUND_BRACKET)
         self._consume_token()
 
         if_block = self._parse_statement_block()
 
-        elif_clauses = []
+        elif_statements = []
 
         while self.current_token.type == TokenType.ELIF_KEYWORD:
             self._consume_token()
             if (elif_condition := self._parse_expression()) is None:
-                raise ParserError("Missing condition after elif keyword", self.current_token.position)
+                raise ExpectedConditionError(self.current_token.position, TokenType.ELIF_KEYWORD)
             elif_block = self._parse_statement_block()
-            elif_clauses.append((elif_condition, elif_block))
+            elif_statements.append((elif_condition, elif_block))
 
         else_block = None
         if self.current_token.type == TokenType.ELSE_KEYWORD:
+            self._consume_token()
             else_block = self._parse_statement_block()
 
         return IfStatement(position,
                            condition,
                            if_block,
-                           elif_clauses,
+                           elif_statements,
                            else_block)
 
     # while_statement = "while", "(", expression, ")", statement_block;
@@ -223,7 +194,7 @@ class Parser:
         self._consume_token()
 
         if (condition := self._parse_expression()) is None:
-            raise ParserError("Missing condition after while keyword", self.current_token.position)
+            raise ExpectedConditionError(self.current_token.position, TokenType.WHILE_KEYWORD)
 
         self._expected_token(TokenType.RIGHT_ROUND_BRACKET)
         self._consume_token()
@@ -238,13 +209,18 @@ class Parser:
             return None
 
         position = self.current_token.position
-        self._consume_token()
         type = self.current_token.type
+        self._consume_token()
+
+        if type == TokenType.BREAK_KEYWORD:
+            control_type = LoopControlType.BREAK
+        elif type == TokenType.CONTINUE_KEYWORD:
+            control_type = LoopControlType.CONTINUE
 
         self._expected_token(TokenType.SEMICOLON)
         self._consume_token()
 
-        return LoopControlStatement(position, type)
+        return LoopControlStatement(position, control_type)
 
     # value_assigment_or_call = identifier, ("=", expression | "(", [function_arguments], ")") ";";
     def _parse_assignment_or_function_call(self) -> Optional[AssignmentStatement | FunctionCallStatement]:
@@ -258,7 +234,7 @@ class Parser:
         if self.current_token.type == TokenType.ASSIGNMENT:
             self._consume_token()
             if (expression := self._parse_expression()) is None:
-                raise ParserError("Missing expression after assignment operator", self.current_token.position)
+                raise ExpectedExpressionError(self.current_token.position, TokenType.ASSIGNMENT)
             self._expected_token(TokenType.SEMICOLON)
             self._consume_token()
             return AssignmentStatement(position, name, expression)
@@ -338,10 +314,10 @@ class Parser:
         name = self.current_token.value
         self._consume_token()
 
-        block = self._parse_statement_block()
-
         self._expected_token(TokenType.RIGHT_ROUND_BRACKET)
         self._consume_token()
+
+        block = self._parse_statement_block()
 
         return CatchStatement(position, exception, name, block)
 
@@ -382,7 +358,7 @@ class Parser:
         if self.current_token.type == TokenType.ASSIGNMENT:
             self._consume_token()
             if (expression := self._parse_expression()) is None:
-                raise ExpectedExpressionError(self.current_token.position)
+                raise ExpectedExpressionError(self.current_token.position, TokenType.ASSIGNMENT)
 
         return Attribute(name, type, expression)
 
@@ -394,7 +370,7 @@ class Parser:
         while self.current_token.type == TokenType.OR_OPERATOR:
             self._consume_token()
             if (right := self._parse_and_expression()) is None:
-                raise ParserError("Missing expression after or operator", self.current_token.position)
+                raise ExpectedExpressionError(self.current_token.position, TokenType.OR_OPERATOR)
             left = OrExpression(left, right)
 
         return left
@@ -407,7 +383,7 @@ class Parser:
         while self.current_token.type == TokenType.AND_OPERATOR:
             self._consume_token()
             if (right := self._parse_relational_expression()) is None:
-                raise ParserError("Missing expression after and operator", self.current_token.position)
+                raise ExpectedExpressionError(self.current_token.position, TokenType.AND_OPERATOR)
             left = AndExpression(left, right)
 
         return left
@@ -420,7 +396,7 @@ class Parser:
         if (operator_type := self.current_token.type).is_relational_operator():
             self._consume_token()
             if (right := self._parse_additive_expression()) is None:
-                raise ParserError("Missing expression after relational operator", self.current_token.position)
+                raise ExpectedExpressionError(self.current_token.position, operator_type)
             left = RelationalExpression(left, right, operator_type)
 
         return left
@@ -433,7 +409,7 @@ class Parser:
         while (operator_type := self.current_token.type).is_additive_operator():
             self._consume_token()
             if (right := self._parse_multiplicative_expression()) is None:
-                raise ParserError("Missing expression after additive operator", self.current_token.position)
+                raise ExpectedExpressionError(self.current_token.position, operator_type)
             left = AdditiveExpression(left, right, operator_type)
 
         return left
@@ -446,7 +422,7 @@ class Parser:
         while (operator_type := self.current_token.type).is_multiplicative_operator():
             self._consume_token()
             if (right := self._parse_casted_basic_expression()) is None:
-                raise ParserError("Missing expression after multiplicative operator", self.current_token.position)
+                raise ExpectedExpressionError(self.current_token.position, operator_type)
             left = MultiplicativeExpression(left, right, operator_type)
 
         return left
@@ -459,8 +435,10 @@ class Parser:
         if self.current_token.type == TokenType.TO_KEYWORD:
             self._consume_token()
             if not self.current_token.type.is_simple_type():
-                raise ParserError("Missing type after to keyword", self.current_token.position)
+                raise ExpectedSimpleTypeError(self.current_token.position)
             type = Type(self.current_token.type)
+            self._consume_token()
+
             left = CastedExpression(left, type)
 
         return left
@@ -470,13 +448,13 @@ class Parser:
         if self.current_token.type == TokenType.NEGATION_OPERATOR:
             self._consume_token()
             if (expression := self._parse_basic_expression()) is None:
-                raise ParserError("Missing expression after negation operator", self.current_token.position)
+                raise ExpectedExpressionError(self.current_token.position, TokenType.NEGATION_OPERATOR)
             return NegatedExpression(expression)
 
         if self.current_token.type == TokenType.MINUS_OPERATOR:
             self._consume_token()
             if (expression := self._parse_basic_expression()) is None:
-                raise ParserError("Missing expression after unary minus operator", self.current_token.position)
+                raise ExpectedExpressionError(self.current_token.position, TokenType.MINUS_OPERATOR)
             return UnaryMinusExpression(expression)
 
         return self._parse_basic_expression()
@@ -488,7 +466,7 @@ class Parser:
         if self.current_token.type == TokenType.LEFT_ROUND_BRACKET:
             self._consume_token()
             if (expression := self._parse_expression()) is None:
-                raise ParserError("Missing expression after left round bracket", self.current_token.position)
+                raise ExpectedExpressionError(self.current_token.position, TokenType.LEFT_ROUND_BRACKET)
             self._expected_token(TokenType.RIGHT_ROUND_BRACKET)
             self._consume_token()
             return expression

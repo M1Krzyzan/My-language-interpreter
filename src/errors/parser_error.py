@@ -26,10 +26,14 @@ class ExpectedSimpleTypeError(ParserError):
         super().__init__(message, position)
 
 class ExpectedExpressionError(ParserError):
-    def __init__(self, position: Position):
-        message = "Missing expression after assignment operator"
+    def __init__(self, position: Position, operator: TokenType):
+        message = "Missing expression after %s" %operator
         super().__init__(message, position)
 
+class ExpectedConditionError(ParserError):
+    def __init__(self, position: Position, keyword: TokenType):
+        message = "Missing condition after %s" %keyword
+        super().__init__(message, position)
 
 class InternalParserError(ParserError):
     def __init__(self, position: Position):

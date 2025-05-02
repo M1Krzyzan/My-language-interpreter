@@ -99,6 +99,10 @@ class TokenType(Enum):
                         TokenType.CONTINUE_KEYWORD)
 
 
+    def __str__(self):
+        return self.name
+
+
 class Symbols:
     keywords = {
         "if": TokenType.IF_KEYWORD,

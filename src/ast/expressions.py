@@ -92,6 +92,15 @@ class MultiplicativeExpression(Expression):
                 self.operator == other.operator)
 
 @dataclass
+class AttributeCall(Expression):
+    var_name: str
+    attr_name: str
+
+    def __eq__(self, other):
+        return (self.var_name == other.var_name and
+                self.attr_name == other.attr_name)
+
+@dataclass
 class Variable(Expression):
     name: str
 

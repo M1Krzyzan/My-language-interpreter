@@ -1,3 +1,4 @@
+from enum import Enum, auto
 from typing import List, Tuple
 
 from src.ast.expressions import Expression
@@ -25,13 +26,13 @@ class StatementBlock:
 class IfStatement(Statement):
     condition: Expression
     if_block: StatementBlock
-    elif_condition: List[Tuple[Expression, StatementBlock]]
+    elif_statement: List[Tuple[Expression, StatementBlock]]
     else_block: StatementBlock
 
     def __eq__(self, other):
         return (self.condition == other.condition and
                 self.if_block == other.if_block and
-                self.elif_condition == other.elif_condition and
+                self.elif_statement == other.elif_condition and
                 self.else_block == other.else_block)
 
 
@@ -44,13 +45,18 @@ class WhileStatement(Statement):
         return (self.condition == other.condition and
                 self.block == other.block)
 
+class LoopControlType(Enum):
+    BREAK = auto()
+    CONTINUE = auto()
+
 
 @dataclass
 class LoopControlStatement(Statement):
-    type: TokenType
+    type: LoopControlType
 
     def __eq__(self, other):
         return self.type == other.type
+
 
 
 @dataclass
@@ -92,18 +98,6 @@ class Attribute:
         return (self.name == other.name and
                 self.type == other.type and
                 self.expression == other.expression)
-
-
-@dataclass
-class AttributeCall:
-    var_name: str
-    attr_name: str
-
-    def __eq__(self, other):
-        return (self.var_name == other.var_name and
-                self.attr_name == other.attr_name)
-
-
 
 @dataclass
 class Parameter:

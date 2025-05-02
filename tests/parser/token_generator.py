@@ -138,3 +138,28 @@ def attributes(attribute_list: List[List[Token]]) -> List[Token]:
         tokens += attr
 
     return tokens
+
+def catch(catch_exception: List[Token], catch_block: List[Token]) -> List[Token]:
+    tokens = [get_token(TokenType.CATCH_KEYWORD),
+              get_token(TokenType.LEFT_ROUND_BRACKET)]
+    tokens += catch_exception
+    tokens.append(get_token(TokenType.RIGHT_ROUND_BRACKET))
+
+    tokens.append(get_token(TokenType.LEFT_CURLY_BRACKET))
+    tokens += catch_block
+    tokens.append(get_token(TokenType.RIGHT_CURLY_BRACKET))
+
+    return tokens
+
+
+def try_catch(try_block: List[Token], catch_statements: List[List[Token]]) -> List[Token]:
+    tokens = [get_token(TokenType.TRY_KEYWORD),
+              get_token(TokenType.LEFT_CURLY_BRACKET)]
+    tokens += try_block
+    tokens.append(get_token(TokenType.RIGHT_CURLY_BRACKET))
+
+    for catch_statement in catch_statements:
+        tokens += catch_statement
+
+    return tokens
+
