@@ -20,6 +20,17 @@ class UnexpectedToken(ParserError):
         super().__init__(message, position)
 
 
+class ExpectedSimpleTypeError(ParserError):
+    def __init__(self, position: Position):
+        message = "Expected simple type after ':'"
+        super().__init__(message, position)
+
+class ExpectedExpressionError(ParserError):
+    def __init__(self, position: Position):
+        message = "Missing expression after assignment operator"
+        super().__init__(message, position)
+
+
 class InternalParserError(ParserError):
     def __init__(self, position: Position):
         message = f'Expected Function or Exception declaration, got unexpected declaration type'

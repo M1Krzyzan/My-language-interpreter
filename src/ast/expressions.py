@@ -91,6 +91,12 @@ class MultiplicativeExpression(Expression):
                 self.right == other.right and
                 self.operator == other.operator)
 
+@dataclass
+class Variable(Expression):
+    name: str
+
+    def __eq__(self, other):
+        return self.name == other.name
 
 @dataclass
 class BoolLiteral(Expression):

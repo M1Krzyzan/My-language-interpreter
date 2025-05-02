@@ -104,13 +104,6 @@ class AttributeCall:
                 self.attr_name == other.attr_name)
 
 
-@dataclass
-class Variable(Statement):
-    name: str
-
-    def __eq__(self, other):
-        return self.name == other.name
-
 
 @dataclass
 class Parameter:

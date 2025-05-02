@@ -104,7 +104,7 @@ def return_statement(expression: List[Token]) -> List[Token]:
 
 def exception(name: str,
               params: Optional[List[Token]] = None,
-              attributes: Optional[List[Token]] = None
+              attr: Optional[List[Token]] = None
               ) -> List[Token]:
     tokens = [get_token(TokenType.EXCEPTION_KEYWORD),
               get_token(TokenType.IDENTIFIER, name),
@@ -113,8 +113,8 @@ def exception(name: str,
         tokens += params
     tokens.append(get_token(TokenType.RIGHT_ROUND_BRACKET))
     tokens.append(get_token(TokenType.LEFT_CURLY_BRACKET))
-    if attributes:
-        tokens += attributes
+    if attr:
+        tokens += attr
     tokens.append(get_token(TokenType.RIGHT_CURLY_BRACKET))
 
     return tokens
@@ -128,5 +128,13 @@ def attribute(name: str, type: TokenType, expression: List[Token] = None) -> Lis
     if expression:
         tokens.append(get_token(TokenType.ASSIGNMENT))
         tokens += expression
+
+    return tokens
+
+def attributes(attribute_list: List[List[Token]]) -> List[Token]:
+    tokens = []
+
+    for attr in attribute_list:
+        tokens += attr
 
     return tokens
