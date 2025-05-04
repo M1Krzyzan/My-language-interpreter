@@ -8,7 +8,7 @@ from src.errors.parser_error import (
     UnexpectedToken,
     DeclarationExistsError,
     ExpectedExpressionError,
-    ExpectedSimpleTypeError, ExpectedConditionError)
+    ExpectedSimpleTypeError, ExpectedConditionError, InternalParserError)
 from src.lexer.position import Position
 from src.lexer.token_ import TokenType, Token
 from src.parser.parser import Parser
@@ -42,10 +42,11 @@ def test_parse_program_raises_when_not_function_or_exception():
     )
     input_program = token_generator.get_program(input_tokens)
 
-    with pytest.raises(UnexpectedToken) as exception_info:
+    with pytest.raises(InternalParserError) as exception_info:
         parse_program(input_program)
 
-    assert exception_info.value.message == f'Unexpected token - expected "{TokenType.ETX}", got "{TokenType.IF_KEYWORD}"'
+    assert exception_info.value.message == ("Expected Function or Exception declaration, "
+                                            "got unexpected declaration type")
 
 
 def test_parse_function_definition():
@@ -361,13 +362,13 @@ def test_parse_return_statement_with_additive_expression_and_recursive_calls():
     nested_additive_expression_second_level = nested_additive_expression.left
     assert isinstance(nested_additive_expression_second_level, AdditiveExpression)
     assert nested_additive_expression_second_level.operator == TokenType.PLUS_OPERATOR
-    assert nested_additive_expression_second_level.right == FunctionCallStatement(position=Position(1, 1),
-                                                                                  name="func",
-                                                                                  arguments=[IntLiteral(2)])
+    assert nested_additive_expression_second_level.right == FunctionCall(position=Position(1, 1),
+                                                                         name="func",
+                                                                         arguments=[IntLiteral(2)])
 
-    assert nested_additive_expression_second_level.left == FunctionCallStatement(position=Position(1, 1),
-                                                                                 name="func",
-                                                                                 arguments=[IntLiteral(1)])
+    assert nested_additive_expression_second_level.left == FunctionCall(position=Position(1, 1),
+                                                                        name="func",
+                                                                        arguments=[IntLiteral(1)])
 
 
 def test_parse_return_statement_with_complex_arithmetic_expression():
@@ -626,9 +627,9 @@ def test_parse_while_statement():
     assert isinstance(statement_block, StatementBlock)
     assert len(statement_block.statements) == 3
 
-    assert statement_block.statements[0] == FunctionCallStatement(name="rand_func",
-                                                                  arguments=[],
-                                                                  position=Position(1, 1))
+    assert statement_block.statements[0] == FunctionCall(name="rand_func",
+                                                         arguments=[],
+                                                         position=Position(1, 1))
 
     assert statement_block.statements[1] == AssignmentStatement(
         name="x",
@@ -901,7 +902,7 @@ def test_parse_try_catch_statement():
     assert catch_statement2 == CatchStatement(
         exception="Exception",
         name="e",
-        block=StatementBlock([FunctionCallStatement(
+        block=StatementBlock([FunctionCall(
             position=Position(1, 1),
             name="print",
             arguments=[AttributeCall(
@@ -910,6 +911,43 @@ def test_parse_try_catch_statement():
             )]
         )]),
         position=Position(1, 1),
+    )
+
+
+def test_parse_throw_statement():
+    """
+    input:
+
+    void main(){
+        throw CustomException(a+b);
+    }
+    """
+    input_tokens = token_generator.function(
+        name="main",
+        return_type=TokenType.VOID_KEYWORD,
+        statement_block=token_generator.throw(
+            exception_name="CustomException",
+            args=[
+                token_generator.get_token(TokenType.IDENTIFIER, "a"),
+                token_generator.get_token(TokenType.PLUS_OPERATOR),
+                token_generator.get_token(TokenType.IDENTIFIER, "b"),
+            ],
+        )
+    )
+    input_program = token_generator.get_program(input_tokens)
+
+    program = parse_program(input_program)
+
+    assert len(program.functions["main"].statement_block.statements) == 1
+    parsed_throw_statement = program.functions["main"].statement_block.statements[0]
+    assert isinstance(parsed_throw_statement, ThrowStatement)
+
+    assert parsed_throw_statement.name == "CustomException"
+    assert len(parsed_throw_statement.args) == 1
+    assert parsed_throw_statement.args[0] == AdditiveExpression(
+        left=Variable("a"),
+        right=Variable("b"),
+        operator=TokenType.PLUS_OPERATOR
     )
 
 

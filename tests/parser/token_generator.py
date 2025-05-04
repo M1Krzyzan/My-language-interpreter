@@ -164,3 +164,14 @@ def try_catch(try_block: List[Token], catch_statements: List[List[Token]]) -> Li
         tokens += catch_statement
 
     return tokens
+
+
+def throw(exception_name: str, args: List[Token]) -> List[Token]:
+    tokens = [get_token(TokenType.THROW_KEYWORD),
+              get_token(TokenType.IDENTIFIER, exception_name),
+              get_token(TokenType.LEFT_ROUND_BRACKET)]
+    tokens += args
+    tokens.append(get_token(TokenType.RIGHT_ROUND_BRACKET))
+    tokens.append(get_token(TokenType.SEMICOLON))
+
+    return tokens

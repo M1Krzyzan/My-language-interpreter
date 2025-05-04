@@ -188,7 +188,8 @@ statement = if_statement |
             loop_control_statement |
             value_assigment_or_call |
             return_statement |
-            try_catch_statement;
+            try_catch_statement |
+            exception_throw;
 
 statement_block = "{", {statement}, "}";
 
@@ -196,7 +197,7 @@ if_statement = "if", "(", expression, ")", statement_block,
                {"elif", "(", expression, ")", statement_block}, 
                ["else", statement_block];
 
-exception_throw = "throw", identifier, ";";
+exception_throw = "throw", identifier, "(", function_arguments , ")", ";";
 
 exception_definition = "exception", identifier,"(", parameters, ")", attributes;
 

@@ -6,8 +6,6 @@ from src.ast.expressions import *
 from src.ast.statemens import *
 
 
-# TODO: CHECK FOR EXCEPTION AND RAISE THEM IN WHOLE CODE - LIKE MISSING
-#  ELEMENT OF STATEMENT/EXPRESSION
 class Parser:
     def __init__(self, lexer: Lexer):
         self.lexer = lexer
@@ -36,6 +34,9 @@ class Parser:
                 exceptions[declaration.name] = declaration
             else:
                 raise InternalParserError(self.current_token.position)
+
+        if self.current_token.type != TokenType.ETX:
+            raise InternalParserError(self.current_token.position)
 
         self._expected_token(TokenType.ETX)
 
@@ -132,14 +133,16 @@ class Parser:
     #            loop_control_statement |
     #            value_assigment_or_call |
     #            return_statement |
-    #            try_catch_statement;
+    #            try_catch_statement |
+    #            exception_throw;;
     def _parse_statement(self) -> Statement:
-        return (self._parse_while_statement() or
-                self._parse_if_statement() or
-                self._parse_loop_control_statement() or
-                self._parse_assignment_or_function_call() or
-                self._parse_return_statement() or
-                self._parse_try_catch_statement())
+        return ((self._parse_while_statement() or
+                 self._parse_if_statement() or
+                 self._parse_loop_control_statement() or
+                 self._parse_assignment_or_function_call() or
+                 self._parse_return_statement() or
+                 self._parse_try_catch_statement()) or
+                self._parse_exception_throw())
 
     # if_statement = "if", "(", expression, ")", statement_block,
     #                {"elif", "(", expression, ")", statement_block},
@@ -205,6 +208,7 @@ class Parser:
 
     # loop_control_statement = ("break" | "continue"), ";";
     def _parse_loop_control_statement(self) -> Optional[LoopControlStatement]:
+
         if not self.current_token.type.is_loop_control_keyword():
             return None
 
@@ -212,6 +216,7 @@ class Parser:
         type = self.current_token.type
         self._consume_token()
 
+        control_type = None
         if type == TokenType.BREAK_KEYWORD:
             control_type = LoopControlType.BREAK
         elif type == TokenType.CONTINUE_KEYWORD:
@@ -223,7 +228,7 @@ class Parser:
         return LoopControlStatement(position, control_type)
 
     # value_assigment_or_call = identifier, ("=", expression | "(", [function_arguments], ")") ";";
-    def _parse_assignment_or_function_call(self) -> Optional[AssignmentStatement | FunctionCallStatement]:
+    def _parse_assignment_or_function_call(self) -> Optional[AssignmentStatement | FunctionCall]:
         if self.current_token.type != TokenType.IDENTIFIER:
             return None
 
@@ -250,7 +255,7 @@ class Parser:
         self._expected_token(TokenType.SEMICOLON)
         self._consume_token()
 
-        return FunctionCallStatement(position, name, function_arguments)
+        return FunctionCall(position, name, function_arguments)
 
     # return_statement = "return", [expression], ";";
     def _parse_return_statement(self) -> Optional[ReturnStatement]:
@@ -284,6 +289,31 @@ class Parser:
             catch_statements.append(catch_statement)
 
         return TryCatchStatement(position, try_block, catch_statements)
+
+    # exception_throw = "throw", identifier, "(", function_arguments, ")", ";";
+    def _parse_exception_throw(self) -> Optional[ThrowStatement]:
+        if self.current_token.type != TokenType.THROW_KEYWORD:
+            return None
+
+        position = self.current_token.position
+        self._consume_token()
+
+        self._expected_token(TokenType.IDENTIFIER)
+        name = self.current_token.value
+        self._consume_token()
+
+        self._expected_token(TokenType.LEFT_ROUND_BRACKET)
+        self._consume_token()
+
+        args = self._parse_function_args()
+
+        self._expected_token(TokenType.RIGHT_ROUND_BRACKET)
+        self._consume_token()
+
+        self._expected_token(TokenType.SEMICOLON)
+        self._consume_token()
+
+        return ThrowStatement(position, name, args)
 
     # function_arguments = [expression, {",", expression}];
     def _parse_function_args(self) -> List[Expression]:
@@ -475,7 +505,7 @@ class Parser:
                 self._parse_call_or_attribute_or_var())
 
     # call_or_attribute_or_var = identifier, ["(", function_arguments, ")" | ".", identifier ];
-    def _parse_call_or_attribute_or_var(self) -> Optional[FunctionCallStatement | AttributeCall | Variable]:
+    def _parse_call_or_attribute_or_var(self) -> Optional[FunctionCall | AttributeCall | Variable]:
         if self.current_token.type != TokenType.IDENTIFIER:
             return None
 
@@ -489,7 +519,7 @@ class Parser:
                 raise ParserError("Missing function arguments", position)
             self._expected_token(TokenType.RIGHT_ROUND_BRACKET)
             self._consume_token()
-            return FunctionCallStatement(position, name, function_args)
+            return FunctionCall(position, name, function_args)
 
         if self.current_token.type == TokenType.DOT:
             self._consume_token()

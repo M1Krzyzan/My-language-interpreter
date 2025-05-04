@@ -216,7 +216,7 @@ if __name__ == "__main__":
 
     with open(sys.argv[1], "r") as file:
         code_source = Source(file)
-        lexer = Lexer(code_source)
+        lexer = DefaultLexer(code_source)
         token_ = lexer.next_token()
 
         try:

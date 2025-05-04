@@ -1,6 +1,5 @@
-exception ValueError(message, value) {
-    message: string = "Wrong value - should be higher than 0: ";
-    value: int;
+exception ValueError(int value) {
+    message: string = "Wrong " + value to string + " - should be higher than 0: ";
 }
 
 $
@@ -33,8 +32,6 @@ void main(){
         }
         print_even_if_not_divisible_by_5(x);
     }catch(BaseException e){
-        print("Error: ", e.message, "\n \t Value=", e.value, e.line, "\n");
+        print("Error: ", e.message, "\\n \t Value=", e.value, e.line, "\\n");
     }
-
-
 }

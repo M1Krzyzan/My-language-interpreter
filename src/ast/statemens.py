@@ -1,12 +1,10 @@
 from enum import Enum, auto
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 
 from src.ast.expressions import Expression
 from src.ast.types import Type
 from src.lexer.position import Position
-from dataclasses import dataclass
-
-from src.lexer.token_ import TokenType
+from dataclasses import dataclass, field
 
 
 @dataclass
@@ -26,14 +24,18 @@ class StatementBlock:
 class IfStatement(Statement):
     condition: Expression
     if_block: StatementBlock
-    elif_statement: List[Tuple[Expression, StatementBlock]]
-    else_block: StatementBlock
+    elif_statement: Optional[List[Tuple[Expression, StatementBlock]]] = field(default_factory=list)
+    else_block: Optional[StatementBlock] = None
 
     def __eq__(self, other):
-        return (self.condition == other.condition and
-                self.if_block == other.if_block and
-                self.elif_statement == other.elif_condition and
-                self.else_block == other.else_block)
+        return (
+            self.condition == other.condition and
+            self.if_block == other.if_block and
+            self.elif_statement == other.elif_statement if (self.elif_statement and other.elif_statement)
+            else self.else_block is other.else_block and
+                 self.else_block == other.else_block if (self.else_block and other.else_block)
+            else self.else_block is other.else_block
+        )
 
 
 @dataclass
@@ -70,7 +72,7 @@ class AssignmentStatement(Statement):
 
 
 @dataclass
-class FunctionCallStatement(Statement):
+class FunctionCall(Expression, Statement):
     name: str
     arguments: List[Expression]
 
@@ -92,7 +94,7 @@ class ReturnStatement(Statement):
 class Attribute:
     name: str
     type: Type
-    expression: Expression
+    expression: Optional[Expression] = field(default_factory=list)
 
     def __eq__(self, other):
         return (self.name == other.name and
@@ -118,7 +120,8 @@ class Exception:
     attributes: list[Attribute]
 
     def __eq__(self, other):
-        return (self.name == other.name and
+        return (self.position == other.position and
+                self.name == other.name and
                 self.parameters == other.parameters and
                 self.attributes == other.attributes)
 
@@ -143,3 +146,13 @@ class TryCatchStatement(Statement):
     def __eq__(self, other):
         return (self.try_block == other.try_block and
                 self.catch_statements == other.catch_statements)
+
+
+@dataclass
+class ThrowStatement(Statement):
+    name: str
+    args: List[Expression]
+
+    def __eq__(self, other):
+        return (self.name == other.name and
+                self.args == other.args)

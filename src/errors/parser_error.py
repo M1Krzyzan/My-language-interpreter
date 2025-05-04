@@ -22,18 +22,21 @@ class UnexpectedToken(ParserError):
 
 class ExpectedSimpleTypeError(ParserError):
     def __init__(self, position: Position):
-        message = "Expected simple type after ':'"
+        message = "Expected simple type"
         super().__init__(message, position)
+
 
 class ExpectedExpressionError(ParserError):
     def __init__(self, position: Position, operator: TokenType):
-        message = "Missing expression after %s" %operator
+        message = "Missing expression after %s" % operator
         super().__init__(message, position)
+
 
 class ExpectedConditionError(ParserError):
     def __init__(self, position: Position, keyword: TokenType):
-        message = "Missing condition after %s" %keyword
+        message = "Missing condition after %s" % keyword
         super().__init__(message, position)
+
 
 class InternalParserError(ParserError):
     def __init__(self, position: Position):
