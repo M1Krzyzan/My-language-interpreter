@@ -21,8 +21,8 @@ class UnexpectedToken(ParserError):
 
 
 class ExpectedSimpleTypeError(ParserError):
-    def __init__(self, position: Position):
-        message = "Expected simple type"
+    def __init__(self, position: Position, prev_token: TokenType):
+        message = f"Expected simple type after {prev_token}"
         super().__init__(message, position)
 
 

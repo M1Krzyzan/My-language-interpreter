@@ -13,6 +13,7 @@ from src.lexer.position import Position
 from src.lexer.token_ import TokenType, Token
 from src.parser.parser import Parser
 from tests.parser.mocked_lexer import MockedLexer
+from tests.parser.token_generator import elif_statement
 
 
 def parse_program(tokens: List[Token]) -> Program:
@@ -438,7 +439,44 @@ def test_parse_return_statement_with_complex_arithmetic_expression():
     assert additive_expression.right == IntLiteral(4)
 
 
-def test_parse_conditional_expression():
+def test_parse_additive_expression():
+    """
+    input:
+
+    float func(float x){
+        return x + 1.35;
+    }
+    """
+    input_tokens = token_generator.function(
+        name="func",
+        return_type=TokenType.BOOL_KEYWORD,
+        params=token_generator.parameters([(TokenType.INT_KEYWORD, "x")]),
+        statement_block=[token_generator.get_token(TokenType.RETURN_KEYWORD),
+                         token_generator.get_token(TokenType.IDENTIFIER, "x"),
+                         token_generator.get_token(TokenType.PLUS_OPERATOR),
+                         token_generator.get_token(TokenType.FLOAT_LITERAL, 1.35),
+                         token_generator.get_token(TokenType.SEMICOLON)]
+    )
+    input_program = token_generator.get_program(input_tokens)
+
+    program = parse_program(input_program)
+
+    assert len(program.functions) == 1
+    assert program.functions.get("func")
+    func = program.functions["func"]
+
+    assert len(func.statement_block.statements) == 1
+    return_statement = func.statement_block.statements[0]
+    assert isinstance(return_statement, ReturnStatement)
+
+    additive_expression = return_statement.expression
+    assert isinstance(additive_expression, AdditiveExpression)
+    assert additive_expression.operator == TokenType.PLUS_OPERATOR
+    assert additive_expression.left == Variable("x")
+    assert additive_expression.right == FloatLiteral(1.35)
+
+
+def test_parse_relational_expression():
     """
     input:
 
@@ -494,6 +532,31 @@ def test_parse_conditional_expression():
     assert and_expression.right == RelationalExpression(left=Variable("x"),
                                                         right=IntLiteral(10),
                                                         operator=TokenType.LESS_THAN_OPERATOR)
+
+
+def test_parse_relational_expression_raises_when_missing_expression_after_relational_operator():
+    """
+    input:
+
+    bool func(int x){
+        return x == ;
+    }
+    """
+    input_tokens = token_generator.function(
+        name="func",
+        return_type=TokenType.BOOL_KEYWORD,
+        params=token_generator.parameters([(TokenType.INT_KEYWORD, "x")]),
+        statement_block=[token_generator.get_token(TokenType.RETURN_KEYWORD),
+                         token_generator.get_token(TokenType.IDENTIFIER, "x"),
+                         token_generator.get_token(TokenType.EQUAL_OPERATOR),
+                         token_generator.get_token(TokenType.SEMICOLON)]
+    )
+    input_program = token_generator.get_program(input_tokens)
+
+    with pytest.raises(ExpectedExpressionError) as exception_info:
+        parse_program(input_program)
+
+    assert exception_info.value.message == f'Missing expression after {TokenType.EQUAL_OPERATOR}'
 
 
 def test_parse_unary_minus_expression():
@@ -566,6 +629,53 @@ def test_parse_casted_expression():
     unary_minus_expression = casted_expression.expression
     assert isinstance(unary_minus_expression, UnaryMinusExpression)
     assert unary_minus_expression.expression == IntLiteral(1)
+
+
+def test_parse_casted_expression_raises_when_missing_simple_type_after_to_operator():
+    """
+    input:
+
+    string func(){
+        return 1 to;
+    }
+    """
+    input_tokens = token_generator.function(
+        name="func",
+        return_type=TokenType.STRING_KEYWORD,
+        statement_block=[token_generator.get_token(TokenType.RETURN_KEYWORD),
+                         token_generator.get_token(TokenType.INT_LITERAL, 1),
+                         token_generator.get_token(TokenType.TO_KEYWORD),
+                         token_generator.get_token(TokenType.SEMICOLON)]
+    )
+    input_program = token_generator.get_program(input_tokens)
+
+    with pytest.raises(ExpectedSimpleTypeError) as exception_info:
+        parse_program(input_program)
+
+    assert exception_info.value.message == f"Expected simple type after {TokenType.TO_KEYWORD}"
+
+
+def test_parse_assigment_raises_when_missing_expression():
+    """
+    input:
+
+    vaid func(){
+        x = ;
+    }
+    """
+    input_tokens = token_generator.function(
+        name="func",
+        return_type=TokenType.VOID_KEYWORD,
+        statement_block=[token_generator.get_token(TokenType.IDENTIFIER, "x"),
+                         token_generator.get_token(TokenType.ASSIGNMENT),
+                         token_generator.get_token(TokenType.SEMICOLON)]
+    )
+    input_program = token_generator.get_program(input_tokens)
+
+    with pytest.raises(ExpectedExpressionError) as exception_info:
+        parse_program(input_program)
+
+    assert exception_info.value.message == f"Missing expression after {TokenType.ASSIGNMENT}"
 
 
 def test_parse_while_statement():
@@ -788,7 +898,7 @@ def test_parse_if_statement():
     )
 
 
-def test_parse_if_statement_raises_when_condition_missing():
+def test_parse_if_statement_raises_when_condition_missing_after_if():
     """
     input:
 
@@ -817,6 +927,46 @@ def test_parse_if_statement_raises_when_condition_missing():
         parse_program(input_program)
 
     assert exception_info.value.message == f"Missing condition after {TokenType.IF_KEYWORD}"
+
+
+def test_parse_if_statement_raises_when_condition_missing_after_elif():
+    """
+    input:
+
+    void main(){
+        if(x == 5){
+            a = x;
+        }elif(){
+            break;
+        }
+    }
+    """
+    if_statement = token_generator.if_statement(
+        condition=[token_generator.get_token(TokenType.IDENTIFIER, "x"),
+                   token_generator.get_token(TokenType.EQUAL_OPERATOR),
+                   token_generator.get_token(TokenType.INT_LITERAL, 5)],
+        if_block=[token_generator.get_token(TokenType.IDENTIFIER, "a"),
+                  token_generator.get_token(TokenType.ASSIGNMENT),
+                  token_generator.get_token(TokenType.IDENTIFIER, "x"),
+                  token_generator.get_token(TokenType.SEMICOLON)]
+    )
+    elif_statements = token_generator.elif_statement(
+        condition=[],
+        elif_block=[token_generator.get_token(TokenType.BREAK_KEYWORD, "a"),
+                    token_generator.get_token(TokenType.SEMICOLON)]
+    )
+    input_tokens = token_generator.function(
+        name="main",
+        params=token_generator.parameters([]),
+        return_type=TokenType.VOID_KEYWORD,
+        statement_block=if_statement + elif_statements
+    )
+    input_program = token_generator.get_program(input_tokens)
+
+    with pytest.raises(ExpectedConditionError) as exception_info:
+        parse_program(input_program)
+
+    assert exception_info.value.message == f"Missing condition after {TokenType.ELIF_KEYWORD}"
 
 
 def test_parse_try_catch_statement():
@@ -1319,5 +1469,7 @@ def test_parse_exception_should_not_allow_void_type_in_attributes():
     )
     input_program = token_generator.get_program(input_tokens)
 
-    with pytest.raises(ExpectedSimpleTypeError):
+    with pytest.raises(ExpectedSimpleTypeError) as exception_info:
         parse_program(input_program)
+
+    assert exception_info.value.message == f"Expected simple type after {TokenType.COLON}"

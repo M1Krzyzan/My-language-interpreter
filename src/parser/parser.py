@@ -32,13 +32,9 @@ class Parser:
                 if exceptions.get(declaration.name):
                     raise DeclarationExistsError(declaration.position, declaration.name)
                 exceptions[declaration.name] = declaration
-            else:
-                raise InternalParserError(self.current_token.position)
 
         if self.current_token.type != TokenType.ETX:
             raise InternalParserError(self.current_token.position)
-
-        self._expected_token(TokenType.ETX)
 
         return Program(functions, exceptions)
 
@@ -169,9 +165,18 @@ class Parser:
 
         while self.current_token.type == TokenType.ELIF_KEYWORD:
             self._consume_token()
+
+            self._expected_token(TokenType.LEFT_ROUND_BRACKET)
+            self._consume_token()
+
             if (elif_condition := self._parse_expression()) is None:
                 raise ExpectedConditionError(self.current_token.position, TokenType.ELIF_KEYWORD)
+
+            self._expected_token(TokenType.RIGHT_ROUND_BRACKET)
+            self._consume_token()
+
             elif_block = self._parse_statement_block()
+
             elif_statements.append((elif_condition, elif_block))
 
         else_block = None
@@ -238,8 +243,10 @@ class Parser:
 
         if self.current_token.type == TokenType.ASSIGNMENT:
             self._consume_token()
+
             if (expression := self._parse_expression()) is None:
                 raise ExpectedExpressionError(self.current_token.position, TokenType.ASSIGNMENT)
+
             self._expected_token(TokenType.SEMICOLON)
             self._consume_token()
             return AssignmentStatement(position, name, expression)
@@ -278,14 +285,12 @@ class Parser:
         position = self.current_token.position
         self._consume_token()
 
-        if (try_block := self._parse_statement_block()) is None:
-            raise ParserError("Missing try_block after try keyword", self.current_token.position)
+        try_block = self._parse_statement_block()
 
         catch_statements = []
 
         while self.current_token.type == TokenType.CATCH_KEYWORD:
-            if (catch_statement := self._parse_catch_statement()) is None:
-                raise ParserError("Missing catch statement after try block", self.current_token.position)
+            catch_statement = self._parse_catch_statement()
             catch_statements.append(catch_statement)
 
         return TryCatchStatement(position, try_block, catch_statements)
@@ -380,7 +385,7 @@ class Parser:
         self._consume_token()
 
         if not self.current_token.type.is_simple_type():
-            raise ExpectedSimpleTypeError(self.current_token.position)
+            raise ExpectedSimpleTypeError(self.current_token.position, TokenType.COLON)
         type = Type(self.current_token.type)
         self._consume_token()
 
@@ -465,7 +470,7 @@ class Parser:
         if self.current_token.type == TokenType.TO_KEYWORD:
             self._consume_token()
             if not self.current_token.type.is_simple_type():
-                raise ExpectedSimpleTypeError(self.current_token.position)
+                raise ExpectedSimpleTypeError(self.current_token.position, TokenType.TO_KEYWORD)
             type = Type(self.current_token.type)
             self._consume_token()
 
@@ -515,17 +520,21 @@ class Parser:
 
         if self.current_token.type == TokenType.LEFT_ROUND_BRACKET:
             self._consume_token()
-            if (function_args := self._parse_function_args()) is None:
-                raise ParserError("Missing function arguments", position)
+
+            function_args = self._parse_function_args()
+
             self._expected_token(TokenType.RIGHT_ROUND_BRACKET)
             self._consume_token()
+
             return FunctionCall(position, name, function_args)
 
         if self.current_token.type == TokenType.DOT:
             self._consume_token()
+
             self._expected_token(TokenType.IDENTIFIER)
             attr_name = self.current_token.value
             self._consume_token()
+
             return AttributeCall(name, attr_name)
 
         return Variable(name)
