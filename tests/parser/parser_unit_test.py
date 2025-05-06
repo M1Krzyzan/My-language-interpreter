@@ -8,12 +8,13 @@ from src.errors.parser_error import (
     UnexpectedToken,
     DeclarationExistsError,
     ExpectedExpressionError,
-    ExpectedSimpleTypeError, ExpectedConditionError, InternalParserError)
+    ExpectedSimpleTypeError,
+    ExpectedConditionError,
+    InternalParserError)
 from src.lexer.position import Position
 from src.lexer.token_ import TokenType, Token
 from src.parser.parser import Parser
 from tests.parser.mocked_lexer import MockedLexer
-from tests.parser.token_generator import elif_statement
 
 
 def parse_program(tokens: List[Token]) -> Program:
@@ -512,14 +513,14 @@ def test_parse_relational_expression():
     or_expression = return_statement.expression
     assert isinstance(or_expression, OrExpression)
     assert or_expression.left == NegatedExpression(expression=EqualsExpression(left=Variable("x"),
-                                                                                   right=IntLiteral(1)))
+                                                                               right=IntLiteral(1)))
 
     and_expression = or_expression.right
     assert isinstance(and_expression, AndExpression)
     assert and_expression.left == NotEqualsExpression(left=Variable("y"),
-                                                       right=IntLiteral(9))
+                                                      right=IntLiteral(9))
     assert and_expression.right == LessThanExpression(left=Variable("x"),
-                                                        right=IntLiteral(10))
+                                                      right=IntLiteral(10))
 
 
 def test_parse_relational_expression_raises_when_missing_expression_after_relational_operator():
@@ -647,7 +648,7 @@ def test_parse_assigment_raises_when_missing_expression():
     """
     input:
 
-    vaid func(){
+    void func(){
         x = ;
     }
     """
@@ -731,7 +732,7 @@ def test_parse_while_statement():
     assert statement_block.statements[1] == AssignmentStatement(
         name="x",
         expression=MinusExpression(left=Variable("x"),
-                                      right=IntLiteral(1)),
+                                   right=IntLiteral(1)),
         position=Position(1, 1)
     )
 
