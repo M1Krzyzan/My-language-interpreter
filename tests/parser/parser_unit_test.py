@@ -351,18 +351,15 @@ def test_parse_return_statement_with_additive_expression_and_recursive_calls():
     return_statement = func.statement_block.statements[0]
     assert isinstance(return_statement, ReturnStatement)
 
-    assert isinstance(return_statement.expression, AdditiveExpression)
-    assert return_statement.expression.operator == TokenType.MINUS_OPERATOR
+    assert isinstance(return_statement.expression, MinusExpression)
     assert return_statement.expression.right == Variable("x")
 
     nested_additive_expression = return_statement.expression.left
-    assert isinstance(nested_additive_expression, AdditiveExpression)
-    assert nested_additive_expression.operator == TokenType.PLUS_OPERATOR
+    assert isinstance(nested_additive_expression, PlusExpression)
     assert nested_additive_expression.right == IntLiteral(5)
 
     nested_additive_expression_second_level = nested_additive_expression.left
-    assert isinstance(nested_additive_expression_second_level, AdditiveExpression)
-    assert nested_additive_expression_second_level.operator == TokenType.PLUS_OPERATOR
+    assert isinstance(nested_additive_expression_second_level, PlusExpression)
     assert nested_additive_expression_second_level.right == FunctionCall(position=Position(1, 1),
                                                                          name="func",
                                                                          arguments=[IntLiteral(2)])
@@ -413,28 +410,23 @@ def test_parse_return_statement_with_complex_arithmetic_expression():
     return_statement = func.statement_block.statements[0]
     assert isinstance(return_statement, ReturnStatement)
 
-    assert isinstance(return_statement.expression, AdditiveExpression)
-    assert return_statement.expression.operator == TokenType.MINUS_OPERATOR
+    assert isinstance(return_statement.expression, MinusExpression)
     assert return_statement.expression.right == IntLiteral(6)
 
     nested_additive_expression = return_statement.expression.left
-    assert isinstance(nested_additive_expression, AdditiveExpression)
-    assert nested_additive_expression.operator == TokenType.PLUS_OPERATOR
+    assert isinstance(nested_additive_expression, PlusExpression)
     assert nested_additive_expression.left == IntLiteral(1)
 
     multiplicative_expression = nested_additive_expression.right
-    assert isinstance(multiplicative_expression, MultiplicativeExpression)
-    assert multiplicative_expression.operator == TokenType.DIVISION_OPERATOR
+    assert isinstance(multiplicative_expression, DivideExpression)
     assert multiplicative_expression.left == IntLiteral(2)
 
     nested_multiplicative_expression = multiplicative_expression.right
-    assert isinstance(nested_multiplicative_expression, MultiplicativeExpression)
-    assert nested_multiplicative_expression.operator == TokenType.MULTIPLICATION_OPERATOR
+    assert isinstance(nested_multiplicative_expression, MultiplyExpression)
     assert nested_multiplicative_expression.right == IntLiteral(5)
 
     additive_expression = nested_multiplicative_expression.left
-    assert isinstance(additive_expression, AdditiveExpression)
-    assert additive_expression.operator == TokenType.MINUS_OPERATOR
+    assert isinstance(additive_expression, MinusExpression)
     assert additive_expression.left == IntLiteral(3)
     assert additive_expression.right == IntLiteral(4)
 
@@ -470,8 +462,7 @@ def test_parse_additive_expression():
     assert isinstance(return_statement, ReturnStatement)
 
     additive_expression = return_statement.expression
-    assert isinstance(additive_expression, AdditiveExpression)
-    assert additive_expression.operator == TokenType.PLUS_OPERATOR
+    assert isinstance(additive_expression, PlusExpression)
     assert additive_expression.left == Variable("x")
     assert additive_expression.right == FloatLiteral(1.35)
 
@@ -520,18 +511,15 @@ def test_parse_relational_expression():
 
     or_expression = return_statement.expression
     assert isinstance(or_expression, OrExpression)
-    assert or_expression.left == NegatedExpression(expression=RelationalExpression(left=Variable("x"),
-                                                                                   right=IntLiteral(1),
-                                                                                   operator=TokenType.EQUAL_OPERATOR))
+    assert or_expression.left == NegatedExpression(expression=EqualsExpression(left=Variable("x"),
+                                                                                   right=IntLiteral(1)))
 
     and_expression = or_expression.right
     assert isinstance(and_expression, AndExpression)
-    assert and_expression.left == RelationalExpression(left=Variable("y"),
-                                                       right=IntLiteral(9),
-                                                       operator=TokenType.NOT_EQUAL_OPERATOR)
-    assert and_expression.right == RelationalExpression(left=Variable("x"),
-                                                        right=IntLiteral(10),
-                                                        operator=TokenType.LESS_THAN_OPERATOR)
+    assert and_expression.left == NotEqualsExpression(left=Variable("y"),
+                                                       right=IntLiteral(9))
+    assert and_expression.right == LessThanExpression(left=Variable("x"),
+                                                        right=IntLiteral(10))
 
 
 def test_parse_relational_expression_raises_when_missing_expression_after_relational_operator():
@@ -728,10 +716,9 @@ def test_parse_while_statement():
     assert isinstance(while_statement, WhileStatement)
 
     condition = while_statement.condition
-    assert isinstance(condition, RelationalExpression)
+    assert isinstance(condition, GreaterThanExpression)
     assert condition.left == Variable("x")
     assert condition.right == IntLiteral(0)
-    assert condition.operator == TokenType.GREATER_THAN_OPERATOR
 
     statement_block = while_statement.block
     assert isinstance(statement_block, StatementBlock)
@@ -743,9 +730,8 @@ def test_parse_while_statement():
 
     assert statement_block.statements[1] == AssignmentStatement(
         name="x",
-        expression=AdditiveExpression(left=Variable("x"),
-                                      right=IntLiteral(1),
-                                      operator=TokenType.MINUS_OPERATOR),
+        expression=MinusExpression(left=Variable("x"),
+                                      right=IntLiteral(1)),
         position=Position(1, 1)
     )
 
@@ -844,10 +830,9 @@ def test_parse_if_statement():
     parsed_if_statement = program.functions["main"].statement_block.statements[0]
     assert isinstance(parsed_if_statement, IfStatement)
 
-    assert parsed_if_statement.condition == RelationalExpression(
+    assert parsed_if_statement.condition == EqualsExpression(
         left=Variable("x"),
-        right=IntLiteral(5),
-        operator=TokenType.EQUAL_OPERATOR
+        right=IntLiteral(5)
     )
     assert len(parsed_if_statement.if_block.statements) == 1
     assert parsed_if_statement.if_block.statements[0] == AssignmentStatement(
@@ -861,10 +846,9 @@ def test_parse_if_statement():
     elif_condition2, elif_block2 = parsed_if_statement.elif_statement[1]
 
     assert isinstance(elif_condition1, RelationalExpression)
-    assert elif_condition1 == RelationalExpression(
+    assert elif_condition1 == EqualsExpression(
         left=Variable("x"),
-        right=IntLiteral(4),
-        operator=TokenType.EQUAL_OPERATOR
+        right=IntLiteral(4)
     )
 
     assert isinstance(elif_block1, StatementBlock)
@@ -876,10 +860,9 @@ def test_parse_if_statement():
     )
 
     assert isinstance(elif_condition2, RelationalExpression)
-    assert elif_condition2 == RelationalExpression(
+    assert elif_condition2 == EqualsExpression(
         left=Variable("x"),
-        right=IntLiteral(3),
-        operator=TokenType.EQUAL_OPERATOR
+        right=IntLiteral(3)
     )
 
     assert isinstance(elif_block2, StatementBlock)
@@ -1094,10 +1077,9 @@ def test_parse_throw_statement():
 
     assert parsed_throw_statement.name == "CustomException"
     assert len(parsed_throw_statement.args) == 1
-    assert parsed_throw_statement.args[0] == AdditiveExpression(
+    assert parsed_throw_statement.args[0] == PlusExpression(
         left=Variable("a"),
-        right=Variable("b"),
-        operator=TokenType.PLUS_OPERATOR
+        right=Variable("b")
     )
 
 

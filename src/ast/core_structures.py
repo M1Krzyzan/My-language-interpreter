@@ -1,7 +1,6 @@
-from src.ast.statemens import StatementBlock, Parameter
+from src.ast.statemens import StatementBlock, Parameter, Attribute
 from src.ast.types import ReturnType
 from dataclasses import dataclass
-from src.ast.statemens import Exception
 from src.lexer.position import Position
 
 
@@ -21,6 +20,18 @@ class Function:
                 self.return_type == other.return_type and
                 self.statement_block == other.statement_block)
 
+@dataclass
+class Exception:
+    position: Position
+    name: str
+    parameters: list[Parameter]
+    attributes: list[Attribute]
+
+    def __eq__(self, other):
+        return (self.position == other.position and
+                self.name == other.name and
+                self.parameters == other.parameters and
+                self.attributes == other.attributes)
 
 @dataclass
 class Program:

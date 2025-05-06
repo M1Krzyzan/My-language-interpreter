@@ -4,6 +4,7 @@ from src.errors.parser_error import ParserError, UnexpectedToken, InternalParser
 from src.lexer.lexer import Lexer
 from src.ast.expressions import *
 from src.ast.statemens import *
+from src.lexer.token_ import TokenType
 
 
 class Parser:
@@ -432,7 +433,8 @@ class Parser:
             self._consume_token()
             if (right := self._parse_additive_expression()) is None:
                 raise ExpectedExpressionError(self.current_token.position, operator_type)
-            left = RelationalExpression(left, right, operator_type)
+            relational_type = RELATIONAL_OPERATOR_MAP[operator_type]
+            left = relational_type(left, right)
 
         return left
 
@@ -445,7 +447,8 @@ class Parser:
             self._consume_token()
             if (right := self._parse_multiplicative_expression()) is None:
                 raise ExpectedExpressionError(self.current_token.position, operator_type)
-            left = AdditiveExpression(left, right, operator_type)
+            additive_type = ADDITIVE_OPERATOR_MAP[operator_type]
+            left = additive_type(left, right)
 
         return left
 
@@ -458,7 +461,8 @@ class Parser:
             self._consume_token()
             if (right := self._parse_casted_basic_expression()) is None:
                 raise ExpectedExpressionError(self.current_token.position, operator_type)
-            left = MultiplicativeExpression(left, right, operator_type)
+            multiplicative_type = MULTIPLICATIVE_OPERATOR_MAP[operator_type]
+            left = multiplicative_type(left, right)
 
         return left
 

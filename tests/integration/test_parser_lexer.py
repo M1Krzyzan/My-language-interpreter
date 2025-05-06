@@ -2,7 +2,7 @@ from io import StringIO
 
 import pytest
 
-from src.ast.core_structures import Function
+from src.ast.core_structures import Function, Exception
 from src.ast.expressions import *
 from src.ast.statemens import *
 from src.ast.types import ReturnType, Type
@@ -84,14 +84,12 @@ def test_parse_program():
         statement_block=StatementBlock([
             ReturnStatement(
                 position=Position(12, 9),
-                expression=RelationalExpression(
-                    left=MultiplicativeExpression(
+                expression=EqualsExpression(
+                    left=ModuloExpression(
                         left=Variable("number"),
-                        right=IntLiteral(2),
-                        operator=TokenType.MODULO_OPERATOR
+                        right=IntLiteral(2)
                     ),
-                    right=IntLiteral(0),
-                    operator=TokenType.EQUAL_OPERATOR
+                    right=IntLiteral(0)
                 )
             )
         ])
@@ -110,22 +108,19 @@ def test_parse_program():
         statement_block=StatementBlock([
             WhileStatement(
                 position=Position(16, 9),
-                condition=RelationalExpression(
+                condition=GreaterThanExpression(
                     left=Variable("number"),
-                    right=IntLiteral(0),
-                    operator=TokenType.GREATER_THAN_OPERATOR
+                    right=IntLiteral(0)
                 ),
                 block=StatementBlock([
                     IfStatement(
                         position=Position(18, 13),
-                        condition=RelationalExpression(
-                            left=MultiplicativeExpression(
+                        condition=EqualsExpression(
+                            left=ModuloExpression(
                                 left=Variable("number"),
-                                right=IntLiteral(5),
-                                operator=TokenType.MODULO_OPERATOR
+                                right=IntLiteral(5)
                             ),
-                            right=IntLiteral(0),
-                            operator=TokenType.EQUAL_OPERATOR
+                            right=IntLiteral(0)
                         ),
                         if_block=StatementBlock([
                             LoopControlStatement(
@@ -157,10 +152,9 @@ def test_parse_program():
                             AssignmentStatement(
                                 position=Position(24, 17),
                                 name="number",
-                                expression=AdditiveExpression(
+                                expression=MinusExpression(
                                     left=Variable("number"),
-                                    right=IntLiteral(1),
-                                    operator=TokenType.MINUS_OPERATOR
+                                    right=IntLiteral(1)
                                 )
                             )
                         ])
@@ -193,10 +187,9 @@ def test_parse_program():
                     ),
                     IfStatement(
                         position=Position(31, 13),
-                        condition=RelationalExpression(
+                        condition=LessThanOrEqualsExpression(
                             left=Variable("x"),
-                            right=IntLiteral(0),
-                            operator=TokenType.LESS_THAN_OR_EQUAL_OPERATOR
+                            right=IntLiteral(0)
                         ),
                         if_block=StatementBlock([
                             ThrowStatement(
@@ -259,17 +252,15 @@ def test_parse_program():
             Attribute(
                 name="message",
                 type=Type(TokenType.STRING_KEYWORD),
-                expression=AdditiveExpression(
-                    left=AdditiveExpression(
+                expression=PlusExpression(
+                    left=PlusExpression(
                         left=StringLiteral("Wrong value="),
                         right=CastedExpression(
                             to_type=Type(TokenType.STRING_KEYWORD),
                             expression=Variable("value")
                         ),
-                        operator=TokenType.PLUS_OPERATOR
                     ),
-                    right=StringLiteral(" - should be higher than 0: "),
-                    operator=TokenType.PLUS_OPERATOR
+                    right=StringLiteral(" - should be higher than 0: ")
                 )
             )
         ]

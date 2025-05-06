@@ -1,5 +1,3 @@
-from typing import Optional
-
 from src.ast.types import Type
 from dataclasses import dataclass
 
@@ -60,36 +58,88 @@ class UnaryMinusExpression(Expression):
 class RelationalExpression(Expression):
     left: Expression
     right: Expression
-    operator: TokenType
 
     def __eq__(self, other):
-        return (self.left == other.left and
-                self.right == other.right and
-                self.operator == other.operator)
+        return (isinstance(other, type(self)) and
+                self.left == other.left and
+                self.right == other.right)
+
+
+@dataclass
+class EqualsExpression(RelationalExpression):
+    ...
+
+
+@dataclass
+class NotEqualsExpression(RelationalExpression):
+    ...
+
+
+@dataclass
+class LessThanExpression(RelationalExpression):
+    ...
+
+
+@dataclass
+class LessThanOrEqualsExpression(RelationalExpression):
+    ...
+
+
+@dataclass
+class GreaterThanExpression(RelationalExpression):
+    ...
+
+
+@dataclass
+class GreaterThanOrEqualsExpression(RelationalExpression):
+    ...
 
 
 @dataclass
 class AdditiveExpression(Expression):
     left: Expression
     right: Expression
-    operator: TokenType
 
     def __eq__(self, other):
-        return (self.left == other.left and
-                self.right == other.right and
-                self.operator == other.operator)
+        return (isinstance(other, type(self)) and
+                self.left == other.left and
+                self.right == other.right)
+
+
+@dataclass
+class MinusExpression(AdditiveExpression):
+    ...
+
+
+@dataclass
+class PlusExpression(AdditiveExpression):
+    ...
 
 
 @dataclass
 class MultiplicativeExpression(Expression):
     left: Expression
     right: Expression
-    operator: TokenType
 
     def __eq__(self, other):
-        return (self.left == other.left and
-                self.right == other.right and
-                self.operator == other.operator)
+        return (isinstance(other, type(self)) and
+                self.left == other.left and
+                self.right == other.right)
+
+
+@dataclass
+class MultiplyExpression(MultiplicativeExpression):
+    ...
+
+
+@dataclass
+class DivideExpression(MultiplicativeExpression):
+    ...
+
+
+@dataclass
+class ModuloExpression(MultiplicativeExpression):
+    ...
 
 
 @dataclass
@@ -142,67 +192,22 @@ class StringLiteral(Expression):
         return self.value == other.value
 
 
-@dataclass
-class EqualsExpression(Expression):
-    left: Expression
-    right: Expression
+RELATIONAL_OPERATOR_MAP = {
+    TokenType.LESS_THAN_OPERATOR: LessThanExpression,
+    TokenType.GREATER_THAN_OR_EQUAL_OPERATOR: GreaterThanOrEqualsExpression,
+    TokenType.GREATER_THAN_OPERATOR: GreaterThanExpression,
+    TokenType.LESS_THAN_OR_EQUAL_OPERATOR: LessThanOrEqualsExpression,
+    TokenType.EQUAL_OPERATOR: EqualsExpression,
+    TokenType.NOT_EQUAL_OPERATOR: NotEqualsExpression
+}
 
+MULTIPLICATIVE_OPERATOR_MAP = {
+    TokenType.MULTIPLICATION_OPERATOR: MultiplyExpression,
+    TokenType.DIVISION_OPERATOR: DivideExpression,
+    TokenType.MODULO_OPERATOR: ModuloExpression
+}
 
-@dataclass
-class NotEqualsExpression(Expression):
-    left: Expression
-    right: Expression
-
-
-@dataclass
-class LessThanExpression(Expression):
-    left: Expression
-    right: Expression
-
-
-@dataclass
-class LessThanOrEqualsExpression(Expression):
-    left: Expression
-    right: Expression
-
-
-@dataclass
-class GreaterThanExpression(Expression):
-    left: Expression
-    right: Expression
-
-
-@dataclass
-class GreaterThanOrEqualsExpression(Expression):
-    left: Expression
-    right: Expression
-
-
-@dataclass
-class MultiplyExpression(Expression):
-    left: Expression
-    right: Expression
-
-
-@dataclass
-class DivideExpression(Expression):
-    left: Expression
-    right: Expression
-
-
-@dataclass
-class ModuloExpression(Expression):
-    left: Expression
-    right: Expression
-
-
-@dataclass
-class MinusExpression(Expression):
-    left: Expression
-    right: Expression
-
-
-@dataclass
-class PlusExpression(Expression):
-    left: Expression
-    right: Expression
+ADDITIVE_OPERATOR_MAP = {
+    TokenType.PLUS_OPERATOR: PlusExpression,
+    TokenType.MINUS_OPERATOR: MinusExpression
+}

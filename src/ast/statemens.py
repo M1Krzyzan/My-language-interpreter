@@ -112,18 +112,7 @@ class Parameter:
                 self.type == other.type)
 
 
-@dataclass
-class Exception:
-    position: Position
-    name: str
-    parameters: list[Parameter]
-    attributes: list[Attribute]
 
-    def __eq__(self, other):
-        return (self.position == other.position and
-                self.name == other.name and
-                self.parameters == other.parameters and
-                self.attributes == other.attributes)
 
 
 @dataclass
