@@ -3,7 +3,7 @@ import token_generator
 from src.ast.core_structures import Program
 from src.ast.expressions import *
 from src.ast.statemens import *
-from src.ast.types import ReturnType, Type
+from src.ast.types import ReturnType, SimpleType, StringType, IntType, BoolType
 from src.errors.parser_error import (
     UnexpectedToken,
     DeclarationExistsError,
@@ -613,7 +613,7 @@ def test_parse_casted_expression():
 
     casted_expression = return_statement.expression
     assert isinstance(casted_expression, CastedExpression)
-    assert casted_expression.to_type == Type(TokenType.STRING_KEYWORD)
+    assert casted_expression.to_type == StringType()
 
     unary_minus_expression = casted_expression.expression
     assert isinstance(unary_minus_expression, UnaryMinusExpression)
@@ -1205,12 +1205,12 @@ def test_parse_exception():
 
     assert exception.name == "CustomException"
     assert len(exception.parameters) == 1
-    assert exception.parameters == [Parameter(type=Type(TokenType.INT_KEYWORD), name="x")]
+    assert exception.parameters == [Parameter(type=IntType(), name="x")]
     assert len(exception.attributes) == 2
-    assert (exception.attributes[0] == Attribute(type=Type(TokenType.INT_KEYWORD),
+    assert (exception.attributes[0] == Attribute(type=IntType(),
                                                  name="number",
                                                  expression=IntLiteral(5)))
-    assert (exception.attributes[1] == Attribute(type=Type(TokenType.BOOL_KEYWORD),
+    assert (exception.attributes[1] == Attribute(type=BoolType(),
                                                  name="is_even",
                                                  expression=BoolLiteral(False)))
 

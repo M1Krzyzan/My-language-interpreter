@@ -5,7 +5,7 @@ import pytest
 from src.ast.core_structures import Function, Exception
 from src.ast.expressions import *
 from src.ast.statemens import *
-from src.ast.types import ReturnType, Type
+from src.ast.types import ReturnType, IntType, StringType
 from src.errors.parser_error import UnexpectedToken, InternalParserError
 from src.lexer.lexer import DefaultLexer
 from src.lexer.position import Position
@@ -78,7 +78,7 @@ def test_parse_program():
         parameters=[
             Parameter(
                 name="number",
-                type=Type(TokenType.INT_KEYWORD)
+                type=IntType()
             )
         ],
         statement_block=StatementBlock([
@@ -102,7 +102,7 @@ def test_parse_program():
         parameters=[
             Parameter(
                 name="number",
-                type=Type(TokenType.INT_KEYWORD)
+                type=IntType()
             )
         ],
         statement_block=StatementBlock([
@@ -177,7 +177,7 @@ def test_parse_program():
                         position=Position(30, 13),
                         name="x",
                         expression=CastedExpression(
-                            to_type=Type(TokenType.INT_KEYWORD),
+                            to_type=IntType(),
                             expression=FunctionCall(
                                 position=Position(30, 17),
                                 name="input",
@@ -245,18 +245,18 @@ def test_parse_program():
         parameters=[
             Parameter(
                 name="value",
-                type=Type(TokenType.INT_KEYWORD),
+                type=IntType(),
             )
         ],
         attributes=[
             Attribute(
                 name="message",
-                type=Type(TokenType.STRING_KEYWORD),
+                type=StringType(),
                 expression=PlusExpression(
                     left=PlusExpression(
                         left=StringLiteral("Wrong value="),
                         right=CastedExpression(
-                            to_type=Type(TokenType.STRING_KEYWORD),
+                            to_type=StringType(),
                             expression=Variable("value")
                         ),
                     ),

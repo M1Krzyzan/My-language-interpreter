@@ -1,9 +1,14 @@
+import io
+
 from src.ast.core_structures import *
-from src.errors.parser_error import ParserError, UnexpectedToken, InternalParserError, DeclarationExistsError, \
+from src.ast.types import TOKEN_TO_TYPE_MAP
+from src.ast.visitor import PrintVisitor
+from src.errors.parser_error import UnexpectedToken, InternalParserError, DeclarationExistsError, \
     ExpectedSimpleTypeError, ExpectedExpressionError, ExpectedConditionError
-from src.lexer.lexer import Lexer
+from src.lexer.lexer import Lexer, DefaultLexer
 from src.ast.expressions import *
 from src.ast.statemens import *
+from src.lexer.source import Source
 from src.lexer.token_ import TokenType
 
 
@@ -99,14 +104,14 @@ class Parser:
         if not self.current_token.type.is_simple_type():
             return None
 
-        type = Type(self.current_token.type)
+        type = TOKEN_TO_TYPE_MAP.get(self.current_token.type)
         self._consume_token()
 
         self._expected_token(TokenType.IDENTIFIER)
         name = self.current_token.value
         self._consume_token()
 
-        return Parameter(name, type)
+        return Parameter(name, type())
 
     # statement_block = "{", {statement}, "}";
     def _parse_statement_block(self) -> StatementBlock:
@@ -387,7 +392,7 @@ class Parser:
 
         if not self.current_token.type.is_simple_type():
             raise ExpectedSimpleTypeError(self.current_token.position, TokenType.COLON)
-        type = Type(self.current_token.type)
+        type = TOKEN_TO_TYPE_MAP.get(self.current_token.type)
         self._consume_token()
 
         expression = None
@@ -396,7 +401,7 @@ class Parser:
             if (expression := self._parse_expression()) is None:
                 raise ExpectedExpressionError(self.current_token.position, TokenType.ASSIGNMENT)
 
-        return Attribute(name, type, expression)
+        return Attribute(name, type(), expression)
 
     # expression = and_expression, {or_operator, and_expression};
     def _parse_expression(self) -> Optional[Expression]:
@@ -475,10 +480,10 @@ class Parser:
             self._consume_token()
             if not self.current_token.type.is_simple_type():
                 raise ExpectedSimpleTypeError(self.current_token.position, TokenType.TO_KEYWORD)
-            type = Type(self.current_token.type)
+            type = TOKEN_TO_TYPE_MAP.get(self.current_token.type)
             self._consume_token()
 
-            left = CastedExpression(left, type)
+            left = CastedExpression(left, type())
 
         return left
 
@@ -591,3 +596,54 @@ class Parser:
     def _skip_comments(self):
         while self.current_token.type == TokenType.COMMENT:
             self.current_token = self.lexer.next_token()
+
+
+def main():
+    input_code = """
+        exception ValueError(int value) {
+            message: string = "Wrong value="+value to string +" - should be higher than 0: ";
+        }
+
+        $
+        Block
+        comment
+        $
+
+        bool is_even(int number){
+            return number % 2 == 0;
+        }
+
+        void print_even_if_not_divisible_by_5(int number){
+            while (number > 0) {
+                # comment
+                if (number % 5 == 0) {
+                    break;
+                }elif (is_even(number)) {
+                    continue;
+                }else{
+                    print("x: ", number);
+                    number = number - 1;
+                }
+            }
+        }
+        void main(){
+            try{
+                x = input() to int;
+                if (x <= 0){
+                    throw ValueError(x);
+                }
+                print_even_if_not_divisible_by_5(x);
+            }catch(BaseException e){
+                print("Error: ", e.message, "\\n \\t Value=", e.value, e.line, "\\n");
+            }
+        }
+        """
+    stream = io.StringIO(input_code)
+    source = Source(stream)
+    lexer = DefaultLexer(source)
+    program = Parser(lexer).get_program()
+    program.accept(PrintVisitor())
+
+
+if __name__ == '__main__':
+    main()
