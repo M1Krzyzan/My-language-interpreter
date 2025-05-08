@@ -1,7 +1,7 @@
 from typing import List
 
 from src.lexer.lexer import Lexer
-from src.lexer.position import Position
+from src.ast.position import Position
 from src.lexer.token_ import Token, TokenType
 from src.parser.parser import Parser
 

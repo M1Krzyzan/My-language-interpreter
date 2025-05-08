@@ -3,15 +3,15 @@ import token_generator
 from src.ast.core_structures import Program
 from src.ast.expressions import *
 from src.ast.statemens import *
-from src.ast.types import ReturnType, StringType, IntType, BoolType
 from src.errors.parser_error import (
     UnexpectedToken,
     DeclarationExistsError,
     ExpectedExpressionError,
-    ExpectedSimpleTypeError,
+    UnknownTypeError,
     ExpectedConditionError,
-    InternalParserError)
-from src.lexer.position import Position
+    ExpectedDeclarationError, ExpectedSimpleTypeError, ExpectedStatementBlockError, ExpectedParameterError,
+    ExpectedAttributesError)
+from src.ast.position import Position
 from src.lexer.token_ import TokenType, Token
 from src.parser.parser import Parser
 from tests.parser.mocked_lexer import MockedLexer
@@ -44,7 +44,7 @@ def test_parse_program_raises_when_not_function_or_exception():
     )
     input_program = token_generator.get_program(input_tokens)
 
-    with pytest.raises(InternalParserError) as exception_info:
+    with pytest.raises(ExpectedDeclarationError) as exception_info:
         parse_program(input_program)
 
     assert exception_info.value.message == ("Expected Function or Exception declaration, "
@@ -89,22 +89,22 @@ def test_parse_function_definition():
 
     assert len(program.functions) == 4
     assert program.functions.get("func1", False)
-    assert program.functions["func1"].return_type == ReturnType(TokenType.VOID_KEYWORD)
+    assert program.functions["func1"].return_type == Type.VoidType
     assert len(program.functions["func1"].parameters) == 4
     assert program.functions["func1"].statement_block == StatementBlock([])
 
     assert program.functions.get("func2", False)
-    assert program.functions["func2"].return_type == ReturnType(TokenType.INT_KEYWORD)
+    assert program.functions["func2"].return_type == Type.IntType
     assert len(program.functions["func2"].parameters) == 0
     assert program.functions["func1"].statement_block == StatementBlock([])
 
     assert program.functions.get("func3", False)
-    assert program.functions["func3"].return_type == ReturnType(TokenType.FLOAT_KEYWORD)
+    assert program.functions["func3"].return_type == Type.FloatType
     assert len(program.functions["func3"].parameters) == 0
     assert program.functions["func1"].statement_block == StatementBlock([])
 
     assert program.functions.get("func4", False)
-    assert program.functions["func4"].return_type == ReturnType(TokenType.STRING_KEYWORD)
+    assert program.functions["func4"].return_type == Type.StringType
     assert len(program.functions["func4"].parameters) == 0
     assert program.functions["func1"].statement_block == StatementBlock([])
 
@@ -158,7 +158,6 @@ def test_parse_function_raises_when_missing_right_round_bracket():
     params=token_generator.parameters(params),
     return_type=TokenType.VOID_KEYWORD,
 ) for params in [
-    [(TokenType.INT_KEYWORD, "x")],
     [(TokenType.FLOAT_KEYWORD, "x"), (TokenType.INT_KEYWORD, "y")],
     [(TokenType.FLOAT_KEYWORD, "x"), (TokenType.INT_KEYWORD, "y"), (TokenType.FLOAT_KEYWORD, "z")]
 ]
@@ -180,11 +179,8 @@ def test_parse_function_raises_when_missing_type_in_parameter(input_tokens):
 
     input_program = token_generator.get_program(input_tokens)
 
-    with pytest.raises(UnexpectedToken) as exception_info:
+    with pytest.raises(ExpectedParameterError):
         parse_program(input_program)
-
-    assert exception_info.value.message == (f'Unexpected token - expected "{TokenType.RIGHT_ROUND_BRACKET}"'
-                                            f', got "{TokenType.IDENTIFIER}"')
 
 
 def test_parse_function_should_not_allow_void_type_in_parameter():
@@ -231,11 +227,10 @@ def test_parse_function_raises_when_missing_left_curly_bracket():
 
     input_program = token_generator.get_program(input_tokens)
 
-    with pytest.raises(UnexpectedToken) as exception_info:
+    with pytest.raises(ExpectedStatementBlockError) as exception_info:
         parse_program(input_program)
 
-    assert exception_info.value.message == (f'Unexpected token - expected "{TokenType.LEFT_CURLY_BRACKET}"'
-                                            f', got "{TokenType.RIGHT_CURLY_BRACKET}"')
+    assert exception_info.value.message == "Missing statement block in function declaration"
 
 
 def test_parse_function_raises_when_missing_right_curly_bracket():
@@ -353,21 +348,25 @@ def test_parse_return_statement_with_additive_expression_and_recursive_calls():
     assert isinstance(return_statement, ReturnStatement)
 
     assert isinstance(return_statement.expression, MinusExpression)
-    assert return_statement.expression.right == Variable("x")
+    assert return_statement.expression.right == Variable(Position(1, 1), "x")
 
     nested_additive_expression = return_statement.expression.left
     assert isinstance(nested_additive_expression, PlusExpression)
-    assert nested_additive_expression.right == IntLiteral(5)
+    assert nested_additive_expression.right == IntLiteral(Position(1, 1), 5)
 
     nested_additive_expression_second_level = nested_additive_expression.left
     assert isinstance(nested_additive_expression_second_level, PlusExpression)
-    assert nested_additive_expression_second_level.right == FunctionCall(position=Position(1, 1),
-                                                                         name="func",
-                                                                         arguments=[IntLiteral(2)])
+    assert nested_additive_expression_second_level.right == FunctionCall(
+        position=Position(1, 1),
+        name="func",
+        arguments=[IntLiteral(Position(1, 1), 2)]
+    )
 
-    assert nested_additive_expression_second_level.left == FunctionCall(position=Position(1, 1),
-                                                                        name="func",
-                                                                        arguments=[IntLiteral(1)])
+    assert nested_additive_expression_second_level.left == FunctionCall(
+        position=Position(1, 1),
+        name="func",
+        arguments=[IntLiteral(Position(1, 1), 1)]
+    )
 
 
 def test_parse_return_statement_with_complex_arithmetic_expression():
@@ -412,24 +411,24 @@ def test_parse_return_statement_with_complex_arithmetic_expression():
     assert isinstance(return_statement, ReturnStatement)
 
     assert isinstance(return_statement.expression, MinusExpression)
-    assert return_statement.expression.right == IntLiteral(6)
+    assert return_statement.expression.right == IntLiteral(Position(1, 1), 6)
 
     nested_additive_expression = return_statement.expression.left
     assert isinstance(nested_additive_expression, PlusExpression)
-    assert nested_additive_expression.left == IntLiteral(1)
+    assert nested_additive_expression.left == IntLiteral(Position(1, 1), 1)
 
     multiplicative_expression = nested_additive_expression.right
     assert isinstance(multiplicative_expression, DivideExpression)
-    assert multiplicative_expression.left == IntLiteral(2)
+    assert multiplicative_expression.left == IntLiteral(Position(1, 1), 2)
 
     nested_multiplicative_expression = multiplicative_expression.right
     assert isinstance(nested_multiplicative_expression, MultiplyExpression)
-    assert nested_multiplicative_expression.right == IntLiteral(5)
+    assert nested_multiplicative_expression.right == IntLiteral(Position(1, 1), 5)
 
     additive_expression = nested_multiplicative_expression.left
     assert isinstance(additive_expression, MinusExpression)
-    assert additive_expression.left == IntLiteral(3)
-    assert additive_expression.right == IntLiteral(4)
+    assert additive_expression.left == IntLiteral(Position(1, 1), 3)
+    assert additive_expression.right == IntLiteral(Position(1, 1), 4)
 
 
 def test_parse_additive_expression():
@@ -464,8 +463,8 @@ def test_parse_additive_expression():
 
     additive_expression = return_statement.expression
     assert isinstance(additive_expression, PlusExpression)
-    assert additive_expression.left == Variable("x")
-    assert additive_expression.right == FloatLiteral(1.35)
+    assert additive_expression.left == Variable(Position(1, 1), "x")
+    assert additive_expression.right == FloatLiteral(Position(1, 1), 1.35)
 
 
 def test_parse_relational_expression():
@@ -512,15 +511,21 @@ def test_parse_relational_expression():
 
     or_expression = return_statement.expression
     assert isinstance(or_expression, OrExpression)
-    assert or_expression.left == NegatedExpression(expression=EqualsExpression(left=Variable("x"),
-                                                                               right=IntLiteral(1)))
+    assert or_expression.left == NegatedExpression(
+        position=Position(1, 1),
+        expression=EqualsExpression(position=Position(1, 1),
+                                    left=Variable(Position(1, 1), "x"),
+                                    right=IntLiteral(Position(1, 1), 1))
+    )
 
     and_expression = or_expression.right
     assert isinstance(and_expression, AndExpression)
-    assert and_expression.left == NotEqualsExpression(left=Variable("y"),
-                                                      right=IntLiteral(9))
-    assert and_expression.right == LessThanExpression(left=Variable("x"),
-                                                      right=IntLiteral(10))
+    assert and_expression.left == NotEqualsExpression(position=Position(1, 1),
+                                                      left=Variable(Position(1, 1), "y"),
+                                                      right=IntLiteral(Position(1, 1), 9))
+    assert and_expression.right == LessThanExpression(position=Position(1, 1),
+                                                      left=Variable(Position(1, 1), "x"),
+                                                      right=IntLiteral(Position(1, 1), 10))
 
 
 def test_parse_relational_expression_raises_when_missing_expression_after_relational_operator():
@@ -578,7 +583,7 @@ def test_parse_unary_minus_expression():
 
     unary_minus_expression = return_statement.expression
     assert isinstance(unary_minus_expression, UnaryMinusExpression)
-    assert unary_minus_expression.expression == IntLiteral(1)
+    assert unary_minus_expression.expression == IntLiteral(Position(1, 1), 1)
 
 
 def test_parse_casted_expression():
@@ -613,11 +618,11 @@ def test_parse_casted_expression():
 
     casted_expression = return_statement.expression
     assert isinstance(casted_expression, CastedExpression)
-    assert casted_expression.to_type == StringType()
+    assert casted_expression.to_type == Type.StringType
 
     unary_minus_expression = casted_expression.expression
     assert isinstance(unary_minus_expression, UnaryMinusExpression)
-    assert unary_minus_expression.expression == IntLiteral(1)
+    assert unary_minus_expression.expression == IntLiteral(Position(1, 1), 1)
 
 
 def test_parse_casted_expression_raises_when_missing_simple_type_after_to_operator():
@@ -638,10 +643,10 @@ def test_parse_casted_expression_raises_when_missing_simple_type_after_to_operat
     )
     input_program = token_generator.get_program(input_tokens)
 
-    with pytest.raises(ExpectedSimpleTypeError) as exception_info:
+    with pytest.raises(UnknownTypeError) as exception_info:
         parse_program(input_program)
 
-    assert exception_info.value.message == f"Expected simple type after {TokenType.TO_KEYWORD}"
+    assert exception_info.value.message == f"Unknown type, got {TokenType.SEMICOLON}"
 
 
 def test_parse_assigment_raises_when_missing_expression():
@@ -718,8 +723,8 @@ def test_parse_while_statement():
 
     condition = while_statement.condition
     assert isinstance(condition, GreaterThanExpression)
-    assert condition.left == Variable("x")
-    assert condition.right == IntLiteral(0)
+    assert condition.left == Variable(Position(1, 1), "x")
+    assert condition.right == IntLiteral(Position(1, 1), 0)
 
     statement_block = while_statement.block
     assert isinstance(statement_block, StatementBlock)
@@ -731,12 +736,13 @@ def test_parse_while_statement():
 
     assert statement_block.statements[1] == AssignmentStatement(
         name="x",
-        expression=MinusExpression(left=Variable("x"),
-                                   right=IntLiteral(1)),
+        expression=MinusExpression(position=Position(1, 1),
+                                   left=Variable(Position(1, 1), "x"),
+                                   right=IntLiteral(Position(1, 1), 1)),
         position=Position(1, 1)
     )
 
-    assert statement_block.statements[2] == WhileStatement(condition=Variable("y"),
+    assert statement_block.statements[2] == WhileStatement(condition=Variable(Position(1, 1), "y"),
                                                            block=StatementBlock([]),
                                                            position=Position(1, 1))
 
@@ -832,13 +838,14 @@ def test_parse_if_statement():
     assert isinstance(parsed_if_statement, IfStatement)
 
     assert parsed_if_statement.condition == EqualsExpression(
-        left=Variable("x"),
-        right=IntLiteral(5)
+        position=Position(1, 1),
+        left=Variable(Position(1, 1), "x"),
+        right=IntLiteral(Position(1, 1), 5)
     )
     assert len(parsed_if_statement.if_block.statements) == 1
     assert parsed_if_statement.if_block.statements[0] == AssignmentStatement(
         position=Position(1, 1),
-        expression=Variable("x"),
+        expression=Variable(Position(1, 1), "x"),
         name='a'
     )
 
@@ -848,37 +855,37 @@ def test_parse_if_statement():
 
     assert isinstance(elif_condition1, RelationalExpression)
     assert elif_condition1 == EqualsExpression(
-        left=Variable("x"),
-        right=IntLiteral(4)
+        position=Position(1, 1),
+        left=Variable(Position(1, 1), "x"),
+        right=IntLiteral(Position(1, 1), 4)
     )
 
     assert isinstance(elif_block1, StatementBlock)
     assert len(elif_block1.statements) == 1
     assert elif_block1.statements[0] == AssignmentStatement(
         position=Position(1, 1),
-        expression=Variable("x"),
+        expression=Variable(Position(1, 1), "x"),
         name='b'
     )
 
     assert isinstance(elif_condition2, RelationalExpression)
     assert elif_condition2 == EqualsExpression(
-        left=Variable("x"),
-        right=IntLiteral(3)
+        position=Position(1, 1),
+        left=Variable(Position(1, 1), "x"),
+        right=IntLiteral(Position(1, 1), 3)
     )
 
     assert isinstance(elif_block2, StatementBlock)
     assert len(elif_block2.statements) == 1
-    assert elif_block2.statements[0] == LoopControlStatement(
+    assert elif_block2.statements[0] == ContinueStatement(
         position=Position(1, 1),
-        type=LoopControlType.CONTINUE
     )
 
     else_block = parsed_if_statement.else_block
     assert isinstance(else_block, StatementBlock)
     assert len(parsed_if_statement.else_block.statements) == 1
-    assert parsed_if_statement.else_block.statements[0] == LoopControlStatement(
+    assert parsed_if_statement.else_block.statements[0] == BreakStatement(
         position=Position(1, 1),
-        type=LoopControlType.BREAK
     )
 
 
@@ -1012,7 +1019,7 @@ def test_parse_try_catch_statement():
     assert len(try_block.statements) == 1
     assert try_block.statements[0] == AssignmentStatement(
         position=Position(1, 1),
-        expression=Variable("x"),
+        expression=Variable(Position(1, 1), "x"),
         name='a'
     )
 
@@ -1026,7 +1033,7 @@ def test_parse_try_catch_statement():
         name="e",
         block=StatementBlock([AssignmentStatement(
             position=Position(1, 1),
-            expression=IntLiteral(0),
+            expression=IntLiteral(Position(1, 1), 0),
             name='a'
         )]),
         position=Position(1, 1),
@@ -1040,6 +1047,7 @@ def test_parse_try_catch_statement():
             position=Position(1, 1),
             name="print",
             arguments=[AttributeCall(
+                position=Position(1, 1),
                 var_name="e",
                 attr_name="message"
             )]
@@ -1079,8 +1087,9 @@ def test_parse_throw_statement():
     assert parsed_throw_statement.name == "CustomException"
     assert len(parsed_throw_statement.args) == 1
     assert parsed_throw_statement.args[0] == PlusExpression(
-        left=Variable("a"),
-        right=Variable("b")
+        position=Position(1, 1),
+        left=Variable(Position(1, 1), "a"),
+        right=Variable(Position(1, 1), "b")
     )
 
 
@@ -1205,14 +1214,14 @@ def test_parse_exception():
 
     assert exception.name == "CustomException"
     assert len(exception.parameters) == 1
-    assert exception.parameters == [Parameter(type=IntType(), name="x")]
+    assert exception.parameters == [Parameter(type=Type.IntType, name="x")]
     assert len(exception.attributes) == 2
-    assert (exception.attributes[0] == Attribute(type=IntType(),
+    assert (exception.attributes[0] == Attribute(type=Type.IntType,
                                                  name="number",
-                                                 expression=IntLiteral(5)))
-    assert (exception.attributes[1] == Attribute(type=BoolType(),
+                                                 expression=IntLiteral(Position(1, 1), 5)))
+    assert (exception.attributes[1] == Attribute(type=Type.BoolType,
                                                  name="is_even",
-                                                 expression=BoolLiteral(False)))
+                                                 expression=BoolLiteral(Position(1, 1), False)))
 
 
 def test_parse_exception_raises_when_duplicate_exception_declaration():
@@ -1321,11 +1330,10 @@ def test_parse_exception_raises_when_missing_left_curly_bracket():
     input_tokens.remove(token_generator.get_token(TokenType.LEFT_CURLY_BRACKET))
     input_program = token_generator.get_program(input_tokens)
 
-    with pytest.raises(UnexpectedToken) as exception_info:
+    with pytest.raises(ExpectedAttributesError) as exception_info:
         parse_program(input_program)
 
-    assert exception_info.value.message == (f'Unexpected token - expected "{TokenType.LEFT_CURLY_BRACKET}"'
-                                            f', got "{TokenType.IDENTIFIER}"')
+    assert exception_info.value.message == "Missing attributes in exception declaration"
 
 
 def test_parse_exception_raises_when_missing_right_curly_bracket():

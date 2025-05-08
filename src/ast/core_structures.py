@@ -1,21 +1,21 @@
 from typing import TYPE_CHECKING
 
 from src.ast.statemens import StatementBlock, Parameter, Attribute
-from src.ast.types import ReturnType
 from dataclasses import dataclass
-
-from src.lexer.position import Position
+from src.ast.node import Node
+from src.ast.position import Position
+from src.ast.types import Type
 
 if TYPE_CHECKING:
     from src.ast.visitor import Visitor
 
 
 @dataclass
-class Function:
+class Function(Node):
     position: Position
     name: str
     parameters: list[Parameter]
-    return_type: ReturnType
+    return_type: Type
     statement_block: StatementBlock
 
     def __eq__(self, other) -> bool:
@@ -31,7 +31,7 @@ class Function:
 
 
 @dataclass
-class Exception:
+class Exception(Node):
     position: Position
     name: str
     parameters: list[Parameter]
@@ -48,7 +48,7 @@ class Exception:
 
 
 @dataclass
-class Program:
+class Program(Node):
     functions: dict[str, Function]
     exceptions: dict[str, Exception]
 

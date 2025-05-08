@@ -1,10 +1,9 @@
-from enum import Enum, auto
 from typing import List, Tuple, Optional, TYPE_CHECKING
 
 from src.ast.expressions import Expression
-from src.ast.types import SimpleType
-
-from src.lexer.position import Position
+from src.ast.types import Type
+from src.ast.node import Node
+from src.ast.position import Position
 from dataclasses import dataclass, field
 
 if TYPE_CHECKING:
@@ -12,7 +11,7 @@ if TYPE_CHECKING:
 
 
 @dataclass
-class Statement:
+class Statement(Node):
     position: Position
 
     def accept(self, visitor: 'Visitor'):
@@ -20,7 +19,7 @@ class Statement:
 
 
 @dataclass
-class StatementBlock:
+class StatementBlock(Node):
     statements: List[Statement]
 
     def __eq__(self, other):
@@ -64,23 +63,28 @@ class WhileStatement(Statement):
         visitor.visit_while_statement(self)
 
 
-class LoopControlType(Enum):
-    BREAK = auto()
-    CONTINUE = auto()
+@dataclass
+class BreakStatement(Statement):
+    def __eq__(self, other):
+        return isinstance(other, type(self))
+
+    def __str__(self):
+        return "break"
+
+    def accept(self, visitor: 'Visitor'):
+        visitor.visit_break_statement(self)
 
 
 @dataclass
-class LoopControlStatement(Statement):
-    type: LoopControlType
-
+class ContinueStatement(Statement):
     def __eq__(self, other):
-        return self.type == other.type
+        return isinstance(other, type(self))
 
     def __str__(self):
-        return "break" if self.type == LoopControlType.BREAK else "continue"
+        return "continue"
 
     def accept(self, visitor: 'Visitor'):
-        visitor.visit_loop_control_statement(self)
+        visitor.visit_continue_statement(self)
 
 
 @dataclass
@@ -124,7 +128,7 @@ class ReturnStatement(Statement):
 @dataclass
 class Attribute:
     name: str
-    type: SimpleType
+    type: Type
     expression: Optional[Expression] = field(default_factory=list)
 
     def __eq__(self, other):
@@ -139,7 +143,7 @@ class Attribute:
 @dataclass
 class Parameter:
     name: str
-    type: SimpleType
+    type: Type
 
     def __eq__(self, other):
         return (self.name == other.name and

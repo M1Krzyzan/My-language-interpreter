@@ -1,6 +1,6 @@
 from typing import TextIO, Tuple
 
-from src.lexer.position import Position
+from src.ast.position import Position
 
 
 class Source:

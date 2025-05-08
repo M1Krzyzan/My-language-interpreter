@@ -1,4 +1,4 @@
-from src.lexer.position import Position
+from src.ast.position import Position
 from src.lexer.token_ import TokenType
 
 
@@ -28,7 +28,19 @@ class ExpectedSimpleTypeError(ParserError):
 
 class ExpectedExpressionError(ParserError):
     def __init__(self, position: Position, operator: TokenType):
-        message = "Missing expression after %s" % operator
+        message = f"Missing expression after {operator}"
+        super().__init__(message, position)
+
+
+class ExpectedAttributesError(ParserError):
+    def __init__(self, position: Position, keyword: str):
+        message = f"Missing attributes in {keyword}"
+        super().__init__(message, position)
+
+
+class ExpectedParameterError(ParserError):
+    def __init__(self, position: Position):
+        message = f"Missing parameters"
         super().__init__(message, position)
 
 
@@ -38,7 +50,19 @@ class ExpectedConditionError(ParserError):
         super().__init__(message, position)
 
 
-class InternalParserError(ParserError):
+class ExpectedStatementBlockError(ParserError):
+    def __init__(self, position: Position, name: str):
+        message = f"Missing statement block in {name}"
+        super().__init__(message, position)
+
+
+class UnknownTypeError(ParserError):
+    def __init__(self, position: Position, type: TokenType):
+        message = f"Unknown type, got {type}"
+        super().__init__(message, position)
+
+
+class ExpectedDeclarationError(ParserError):
     def __init__(self, position: Position):
         message = f'Expected Function or Exception declaration, got unexpected declaration type'
         super().__init__(message, position)

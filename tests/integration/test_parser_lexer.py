@@ -5,12 +5,11 @@ import pytest
 from src.ast.core_structures import Function, Exception
 from src.ast.expressions import *
 from src.ast.statemens import *
-from src.ast.types import ReturnType, IntType, StringType
-from src.errors.parser_error import UnexpectedToken, InternalParserError
+from src.errors.parser_error import UnexpectedToken, ExpectedDeclarationError
 from src.lexer.lexer import DefaultLexer
-from src.lexer.position import Position
+from src.ast.position import Position
 from src.lexer.source import Source
-from src.lexer.token_ import TokenType, Token
+from src.lexer.token_ import TokenType
 from src.parser.parser import Parser
 
 
@@ -74,22 +73,24 @@ def test_parse_program():
     assert is_even_function == Function(
         position=Position(11, 5),
         name="is_even",
-        return_type=ReturnType(TokenType.BOOL_KEYWORD),
+        return_type=Type.BoolType,
         parameters=[
             Parameter(
                 name="number",
-                type=IntType()
+                type=Type.IntType
             )
         ],
         statement_block=StatementBlock([
             ReturnStatement(
                 position=Position(12, 9),
                 expression=EqualsExpression(
+                    position=Position(12, 16),
                     left=ModuloExpression(
-                        left=Variable("number"),
-                        right=IntLiteral(2)
+                        position=Position(12, 16),
+                        left=Variable(Position(12, 16), "number"),
+                        right=IntLiteral(Position(12, 25), 2)
                     ),
-                    right=IntLiteral(0)
+                    right=IntLiteral(Position(12, 30), 0)
                 )
             )
         ])
@@ -98,45 +99,46 @@ def test_parse_program():
     assert print_even_function == Function(
         position=Position(15, 5),
         name="print_even_if_not_divisible_by_5",
-        return_type=ReturnType(TokenType.VOID_KEYWORD),
+        return_type=Type.VoidType,
         parameters=[
             Parameter(
                 name="number",
-                type=IntType()
+                type=Type.IntType
             )
         ],
         statement_block=StatementBlock([
             WhileStatement(
                 position=Position(16, 9),
                 condition=GreaterThanExpression(
-                    left=Variable("number"),
-                    right=IntLiteral(0)
+                    position=Position(16, 16),
+                    left=Variable(Position(16, 16), "number"),
+                    right=IntLiteral(Position(16, 25), 0)
                 ),
                 block=StatementBlock([
                     IfStatement(
                         position=Position(18, 13),
                         condition=EqualsExpression(
+                            position=Position(18, 17),
                             left=ModuloExpression(
-                                left=Variable("number"),
-                                right=IntLiteral(5)
+                                position=Position(18, 17),
+                                left=Variable(Position(18, 17), "number"),
+                                right=IntLiteral(Position(18, 26), 5)
                             ),
-                            right=IntLiteral(0)
+                            right=IntLiteral(Position(18, 31), 0)
                         ),
                         if_block=StatementBlock([
-                            LoopControlStatement(
+                            BreakStatement(
                                 position=Position(19, 17),
-                                type=LoopControlType.BREAK
                             )
                         ]),
                         elif_statement=[(
                             FunctionCall(
                                 position=Position(20, 20),
                                 name="is_even",
-                                arguments=[Variable("number")]
-                            ),StatementBlock([
-                                LoopControlStatement(
-                                    position=Position(21, 17),
-                                    type=LoopControlType.CONTINUE
+                                arguments=[Variable(Position(20, 28), "number")]
+                            ), StatementBlock([
+                                ContinueStatement(
+                                    position=Position(21, 17)
                                 )]
                             )
                         )],
@@ -145,16 +147,17 @@ def test_parse_program():
                                 position=Position(23, 17),
                                 name="print",
                                 arguments=[
-                                    StringLiteral("x: "),
-                                    Variable("number")
+                                    StringLiteral(Position(23, 23), "x: "),
+                                    Variable(Position(23, 30), "number")
                                 ]
                             ),
                             AssignmentStatement(
                                 position=Position(24, 17),
                                 name="number",
                                 expression=MinusExpression(
-                                    left=Variable("number"),
-                                    right=IntLiteral(1)
+                                    position=Position(24, 35),
+                                    left=Variable(Position(24, 26), "number"),
+                                    right=IntLiteral(Position(24, 35), 1)
                                 )
                             )
                         ])
@@ -167,7 +170,7 @@ def test_parse_program():
     assert main_function == Function(
         position=Position(28, 5),
         name="main",
-        return_type=ReturnType(TokenType.VOID_KEYWORD),
+        return_type=Type.VoidType,
         parameters=[],
         statement_block=StatementBlock([
             TryCatchStatement(
@@ -177,7 +180,8 @@ def test_parse_program():
                         position=Position(30, 13),
                         name="x",
                         expression=CastedExpression(
-                            to_type=IntType(),
+                            position=Position(30, 17),
+                            to_type=Type.IntType,
                             expression=FunctionCall(
                                 position=Position(30, 17),
                                 name="input",
@@ -188,21 +192,22 @@ def test_parse_program():
                     IfStatement(
                         position=Position(31, 13),
                         condition=LessThanOrEqualsExpression(
-                            left=Variable("x"),
-                            right=IntLiteral(0)
+                            position=Position(31, 17),
+                            left=Variable(Position(31, 17), "x"),
+                            right=IntLiteral(Position(31, 22), 0)
                         ),
                         if_block=StatementBlock([
                             ThrowStatement(
                                 position=Position(32, 17),
                                 name="ValueError",
-                                args=[Variable("x")]
+                                args=[Variable(Position(32, 34), "x")]
                             )
                         ]),
                     ),
                     FunctionCall(
                         position=Position(34, 13),
                         name="print_even_if_not_divisible_by_5",
-                        arguments=[Variable("x")]
+                        arguments=[Variable(Position(34, 46), "x")]
                     )
                 ]),
                 catch_statements=[
@@ -215,21 +220,24 @@ def test_parse_program():
                                 position=Position(36, 13),
                                 name="print",
                                 arguments=[
-                                    StringLiteral("Error: "),
+                                    StringLiteral(Position(36, 19), "Error: "),
                                     AttributeCall(
+                                        position=Position(36, 30),
                                         var_name="e",
                                         attr_name="message"
                                     ),
-                                    StringLiteral("\n \t Value="),
+                                    StringLiteral(Position(36, 41), "\n \t Value="),
                                     AttributeCall(
+                                        position=Position(36, 57),
                                         var_name="e",
                                         attr_name="value"
                                     ),
                                     AttributeCall(
+                                        position=Position(36, 66),
                                         var_name="e",
                                         attr_name="line"
                                     ),
-                                    StringLiteral("\n"),
+                                    StringLiteral(Position(36, 74), "\n"),
                                 ]
                             )
                         ])
@@ -245,26 +253,30 @@ def test_parse_program():
         parameters=[
             Parameter(
                 name="value",
-                type=IntType(),
+                type=Type.IntType,
             )
         ],
         attributes=[
             Attribute(
                 name="message",
-                type=StringType(),
+                type=Type.StringType,
                 expression=PlusExpression(
+                    position=Position(3, 27),
                     left=PlusExpression(
-                        left=StringLiteral("Wrong value="),
+                        position=Position(3, 27),
+                        left=StringLiteral(Position(18, 13), "Wrong value="),
                         right=CastedExpression(
-                            to_type=StringType(),
-                            expression=Variable("value")
+                            position=Position(3, 42),
+                            to_type=Type.StringType,
+                            expression=Variable(Position(3, 42), "value")
                         ),
                     ),
-                    right=StringLiteral(" - should be higher than 0: ")
+                    right=StringLiteral(Position(3, 59), " - should be higher than 0: ")
                 )
             )
         ]
     )
+
 
 def test_parse_program_raises_when_program_cant_be_parsed():
     input_code = """
@@ -277,12 +289,13 @@ def test_parse_program_raises_when_program_cant_be_parsed():
     source = Source(stream)
     lexer = DefaultLexer(source)
 
-    with pytest.raises(InternalParserError) as exception_info:
+    with pytest.raises(ExpectedDeclarationError) as exception_info:
         Parser(lexer).get_program()
 
     assert exception_info.value.position == Position(2, 5)
     assert exception_info.value.message == ("Expected Function or Exception declaration, "
                                             "got unexpected declaration type")
+
 
 def test_parse_program_raises_when_function_cant_be_parsed():
     input_code = """

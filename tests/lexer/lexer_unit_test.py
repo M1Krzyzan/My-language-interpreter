@@ -13,7 +13,7 @@ from src.errors.lexer_errors import (
     UnterminatedCommentBlockError
 )
 from src.lexer.lexer import DefaultLexer
-from src.lexer.position import Position
+from src.ast.position import Position
 from src.lexer.source import Source
 from src.lexer.token_ import TokenType, Token, Symbols
 

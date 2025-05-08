@@ -1,6 +1,6 @@
 from typing import List, Tuple, Optional
 
-from src.lexer.position import Position
+from src.ast.position import Position
 from src.lexer.token_ import Token, TokenType
 
 

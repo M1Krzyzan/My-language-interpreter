@@ -1,15 +1,17 @@
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from dataclasses import dataclass
-
-from src.ast.types import SimpleType
-from src.lexer.token_ import TokenType
+from src.ast.position import Position
+from src.ast.types import Type
+from src.ast.node import Node
 
 if TYPE_CHECKING:
-    from src.ast.visitor import Visitor
+    from src.ast.node import Visitor
 
+@dataclass
+class Expression(Node):
+    position: Position
 
-class Expression:
     def accept(self, visitor: 'Visitor'):
         pass
 
@@ -43,7 +45,7 @@ class AndExpression(Expression):
 @dataclass
 class CastedExpression(Expression):
     expression: Expression
-    to_type: SimpleType
+    to_type: Type
 
     def __eq__(self, other):
         return (self.expression == other.expression and
@@ -240,24 +242,3 @@ class StringLiteral(Expression):
 
     def accept(self, visitor: 'Visitor'):
         visitor.visit_string_literal(self)
-
-
-RELATIONAL_OPERATOR_MAP = {
-    TokenType.LESS_THAN_OPERATOR: LessThanExpression,
-    TokenType.GREATER_THAN_OR_EQUAL_OPERATOR: GreaterThanOrEqualsExpression,
-    TokenType.GREATER_THAN_OPERATOR: GreaterThanExpression,
-    TokenType.LESS_THAN_OR_EQUAL_OPERATOR: LessThanOrEqualsExpression,
-    TokenType.EQUAL_OPERATOR: EqualsExpression,
-    TokenType.NOT_EQUAL_OPERATOR: NotEqualsExpression
-}
-
-MULTIPLICATIVE_OPERATOR_MAP = {
-    TokenType.MULTIPLICATION_OPERATOR: MultiplyExpression,
-    TokenType.DIVISION_OPERATOR: DivideExpression,
-    TokenType.MODULO_OPERATOR: ModuloExpression
-}
-
-ADDITIVE_OPERATOR_MAP = {
-    TokenType.PLUS_OPERATOR: PlusExpression,
-    TokenType.MINUS_OPERATOR: MinusExpression
-}

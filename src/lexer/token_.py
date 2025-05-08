@@ -1,7 +1,7 @@
 from enum import Enum, auto
 from typing import Union
 
-from src.lexer.position import Position
+from src.ast.position import Position
 
 
 class TokenType(Enum):
@@ -57,46 +57,6 @@ class TokenType(Enum):
     BOOLEAN_LITERAL = auto()
     COMMENT = auto()
     ETX = auto()
-
-    def is_return_type(self) -> bool:
-        return self in (TokenType.INT_KEYWORD,
-                        TokenType.STRING_KEYWORD,
-                        TokenType.BOOL_KEYWORD,
-                        TokenType.FLOAT_KEYWORD,
-                        TokenType.VOID_KEYWORD)
-
-    def is_simple_type(self) -> bool:
-        return self in (TokenType.INT_KEYWORD,
-                        TokenType.STRING_KEYWORD,
-                        TokenType.BOOL_KEYWORD,
-                        TokenType.FLOAT_KEYWORD)
-
-    def is_relational_operator(self) -> bool:
-        return self in (TokenType.EQUAL_OPERATOR,
-                        TokenType.NOT_EQUAL_OPERATOR,
-                        TokenType.LESS_THAN_OR_EQUAL_OPERATOR,
-                        TokenType.GREATER_THAN_OR_EQUAL_OPERATOR,
-                        TokenType.LESS_THAN_OPERATOR,
-                        TokenType.GREATER_THAN_OPERATOR)
-
-    def is_multiplicative_operator(self) -> bool:
-        return self in (TokenType.MULTIPLICATION_OPERATOR,
-                        TokenType.DIVISION_OPERATOR,
-                        TokenType.MODULO_OPERATOR)
-
-    def is_additive_operator(self) -> bool:
-        return self in (TokenType.PLUS_OPERATOR,
-                        TokenType.MINUS_OPERATOR)
-
-    def is_literal(self) -> bool:
-        return self in (TokenType.INT_LITERAL,
-                        TokenType.FLOAT_LITERAL,
-                        TokenType.BOOLEAN_LITERAL,
-                        TokenType.STRING_LITERAL)
-
-    def is_loop_control_keyword(self) -> bool:
-        return self in (TokenType.BREAK_KEYWORD,
-                        TokenType.CONTINUE_KEYWORD)
 
     def __str__(self):
         return self.name
