@@ -52,6 +52,7 @@ class CastedExpression(Expression):
     def accept(self, visitor: 'Visitor'):
         visitor.visit_casted_expression(self)
 
+
 @dataclass
 class NegatedExpression(Expression):
     expression: Expression
@@ -61,6 +62,7 @@ class NegatedExpression(Expression):
 
     def accept(self, visitor: 'Visitor'):
         visitor.visit_negated_expression(self)
+
 
 @dataclass
 class UnaryMinusExpression(Expression):
@@ -72,6 +74,7 @@ class UnaryMinusExpression(Expression):
     def accept(self, visitor: 'Visitor'):
         visitor.visit_unary_minus_expression(self)
 
+
 @dataclass
 class RelationalExpression(Expression):
     left: Expression
@@ -81,9 +84,6 @@ class RelationalExpression(Expression):
         return (isinstance(other, type(self)) and
                 self.left == other.left and
                 self.right == other.right)
-
-    def accept(self, visitor: 'Visitor'):
-        visitor.visit_relational_expression(self)
 
 
 @dataclass
@@ -132,9 +132,6 @@ class AdditiveExpression(Expression):
                 self.left == other.left and
                 self.right == other.right)
 
-    def accept(self, visitor: 'Visitor'):
-        visitor.visit_additive_expression(self)
-
 
 @dataclass
 class MinusExpression(AdditiveExpression):
@@ -157,8 +154,6 @@ class MultiplicativeExpression(Expression):
         return (isinstance(other, type(self)) and
                 self.left == other.left and
                 self.right == other.right)
-
-
 
 
 @dataclass
@@ -213,6 +208,7 @@ class BoolLiteral(Expression):
     def accept(self, visitor: 'Visitor'):
         visitor.visit_bool_literal(self)
 
+
 @dataclass
 class FloatLiteral(Expression):
     value: float
@@ -222,6 +218,7 @@ class FloatLiteral(Expression):
 
     def accept(self, visitor: 'Visitor'):
         visitor.visit_float_literal(self)
+
 
 @dataclass
 class IntLiteral(Expression):
@@ -233,6 +230,7 @@ class IntLiteral(Expression):
     def accept(self, visitor: 'Visitor'):
         visitor.visit_int_literal(self)
 
+
 @dataclass
 class StringLiteral(Expression):
     value: str
@@ -242,6 +240,7 @@ class StringLiteral(Expression):
 
     def accept(self, visitor: 'Visitor'):
         visitor.visit_string_literal(self)
+
 
 RELATIONAL_OPERATOR_MAP = {
     TokenType.LESS_THAN_OPERATOR: LessThanExpression,

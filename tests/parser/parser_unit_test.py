@@ -3,7 +3,7 @@ import token_generator
 from src.ast.core_structures import Program
 from src.ast.expressions import *
 from src.ast.statemens import *
-from src.ast.types import ReturnType, SimpleType, StringType, IntType, BoolType
+from src.ast.types import ReturnType, StringType, IntType, BoolType
 from src.errors.parser_error import (
     UnexpectedToken,
     DeclarationExistsError,

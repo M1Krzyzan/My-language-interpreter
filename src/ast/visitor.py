@@ -6,7 +6,7 @@ from src.ast.expressions import OrExpression, AndExpression, CastedExpression, R
     LessThanOrEqualsExpression, GreaterThanOrEqualsExpression, MinusExpression, PlusExpression, ModuloExpression, \
     DivideExpression, MultiplyExpression, NegatedExpression, UnaryMinusExpression
 from src.ast.statemens import Statement, StatementBlock, Attribute, IfStatement, ReturnStatement, TryCatchStatement, \
-    CatchStatement, WhileStatement, ThrowStatement, FunctionCall, AssignmentStatement
+    CatchStatement, WhileStatement, ThrowStatement, FunctionCall, AssignmentStatement, LoopControlStatement
 
 
 class Visitor(ABC):
@@ -150,6 +150,10 @@ class Visitor(ABC):
     def visit_greater_than_expression(self, self1):
         pass
 
+    @abstractmethod
+    def visit_loop_control_statement(self, loop_control_statement: LoopControlStatement):
+        pass
+
 
 class PrintVisitor(Visitor):
     def __init__(self):
@@ -238,8 +242,9 @@ class PrintVisitor(Visitor):
         self._print_with_indent(f"type={attribute.type}")
 
         if attribute.expression:
-            self._print_with_indent("expression=")
+            self._print_with_indent("expression=[")
             attribute.expression.accept(self)
+            self._print_with_indent("]")
         else:
             self._print_with_indent("expression=[]")
 
@@ -252,8 +257,9 @@ class PrintVisitor(Visitor):
         self._print_with_indent("IfStatement[")
         self.indent += 1
 
-        self._print_with_indent("condition=")
+        self._print_with_indent("condition=[")
         if_statement.condition.accept(self)
+        self._print_with_indent("]")
 
         self._print_with_indent("if_block=[")
         if_statement.if_block.accept(self)
@@ -261,8 +267,9 @@ class PrintVisitor(Visitor):
 
         i = 1
         for elif_condition, elif_block in if_statement.elif_statement:
-            self._print_with_indent(f"elif_condition{i}=")
+            self._print_with_indent(f"elif_condition{i}=[")
             elif_condition.accept(self)
+            self._print_with_indent("]")
 
             self._print_with_indent(f"elif_block{i}=[")
             elif_block.accept(self)
@@ -276,6 +283,11 @@ class PrintVisitor(Visitor):
 
         self.indent -= 1
         self._print_with_indent("]")
+        self.indent -= 1
+
+    def visit_loop_control_statement(self, loop_control_statement: LoopControlStatement):
+        self.indent += 1
+        self._print_with_indent(f"LoopControlStatement({loop_control_statement.type})")
         self.indent -= 1
 
     def visit_return_statement(self, return_statement: ReturnStatement):
@@ -327,8 +339,9 @@ class PrintVisitor(Visitor):
         self._print_with_indent("WhileStatement[")
         self.indent += 1
 
-        self._print_with_indent("condition=")
+        self._print_with_indent("condition=[")
         while_statement.condition.accept(self)
+        self._print_with_indent("]")
 
         self._print_with_indent("while_block=[")
         self.indent += 1
@@ -465,7 +478,6 @@ class PrintVisitor(Visitor):
         self.indent -= 1
         self._print_with_indent(")")
         self.indent -= 1
-
 
     def visit_attribute_call(self, attribute_call: AttributeCall):
         self.indent += 1

@@ -18,6 +18,7 @@ class Statement:
     def accept(self, visitor: 'Visitor'):
         pass
 
+
 @dataclass
 class StatementBlock:
     statements: List[Statement]
@@ -62,6 +63,7 @@ class WhileStatement(Statement):
     def accept(self, visitor: 'Visitor'):
         visitor.visit_while_statement(self)
 
+
 class LoopControlType(Enum):
     BREAK = auto()
     CONTINUE = auto()
@@ -73,6 +75,12 @@ class LoopControlStatement(Statement):
 
     def __eq__(self, other):
         return self.type == other.type
+
+    def __str__(self):
+        return "break" if self.type == LoopControlType.BREAK else "continue"
+
+    def accept(self, visitor: 'Visitor'):
+        visitor.visit_loop_control_statement(self)
 
 
 @dataclass
@@ -86,6 +94,7 @@ class AssignmentStatement(Statement):
 
     def accept(self, visitor: 'Visitor'):
         visitor.visit_assignment_statement(self)
+
 
 @dataclass
 class FunctionCall(Expression, Statement):
