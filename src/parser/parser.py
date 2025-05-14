@@ -2,7 +2,7 @@ import io
 
 from src.ast.core_structures import *
 from src.interpreter.print_visitor import PrintVisitor
-from src.errors.parser_error import UnexpectedToken, ExpectedDeclarationError, DeclarationExistsError, \
+from src.errors.parser_errors import UnexpectedToken, ExpectedDeclarationError, DeclarationExistsError, \
     ExpectedSimpleTypeError, ExpectedExpressionError, ExpectedConditionError, ExpectedStatementBlockError, \
     UnknownTypeError, ExpectedAttributesError, ExpectedParameterError
 from src.lexer.lexer import Lexer, DefaultLexer

@@ -8,7 +8,7 @@ from src.ast.expressions import OrExpression, AndExpression, CastedExpression, \
     DivideExpression, MultiplyExpression, NegatedExpression, UnaryMinusExpression
 from src.ast.statemens import Statement, StatementBlock, Attribute, IfStatement, ReturnStatement, TryCatchStatement, \
     CatchStatement, AssignmentStatement, \
-    BreakStatement, ContinueStatement
+    BreakStatement, ContinueStatement, FunctionCall
 
 
 class Visitor(ABC):
@@ -57,7 +57,7 @@ class Visitor(ABC):
         pass
 
     @abstractmethod
-    def visit_function_call(self, function_call: Function):
+    def visit_function_call(self, function_call: FunctionCall):
         pass
 
     @abstractmethod
