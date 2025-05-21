@@ -10,8 +10,8 @@ class Scope:
         self.parent_scope = parent_scope
 
     def declare_variable(self, variable: TypedVariable):
-        if not self.contains(variable.name):
-            raise InterpreterError(f"Variable '{variable.name}' is not declared in this scope.")
+        if self.contains(variable.name):
+            raise InterpreterError(f"Variable '{variable.name}' is already declared in this scope.")
         self.variables[variable.name] = variable
 
     def assign_variable(self, name: str, value: int|float|bool|str):

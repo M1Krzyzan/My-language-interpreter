@@ -21,7 +21,7 @@ class FunctionContext:
 
     def declare_variable(self, variable: TypedVariable):
         if self.scope_stack[-1].contains(variable.name):
-            raise InterpreterError(f"Variable '{variable.name}' not found in any scope.")
+            raise InterpreterError(f"Variable '{variable.name}' already declared.")
         self.scope_stack[-1].declare_variable(variable)
 
     def assign_variable(self, name: str, value: int|float|bool|str):

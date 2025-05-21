@@ -1,21 +1,48 @@
 from src.ast.position import Position
+from src.ast.types import Type
 
 
 class InterpreterError(Exception):
-    def __init__(self, message: str, position: Position):
+    def __init__(self, message: str):
         super().__init__(message)
         self.message = message
-        self.position = position
+        # self.position = position
 
     def __str__(self):
-        return f"\033[31mInterpreterError: {self.message} at {self.position}"
+        return f"\033[31mInterpreterError: {self.message} at"
+
 
 class MissingMainFunctionDeclaration(InterpreterError):
     def __init__(self, position: Position):
         message = "Missing main function declaration in program"
-        super().__init__(message, position)
+        super().__init__(message)
+
 
 class UnknownFunctionCall(InterpreterError):
     def __init__(self, position: Position, function_name: str):
         message = f'Undeclared function call(name="{function_name}")'
-        super().__init__(message, position)
+        super().__init__(message)
+
+
+class WrongExpressionType(InterpreterError):
+    def __init__(self, exp_type):
+        message = f'Unknown expression type {exp_type}")'
+        super().__init__(message)
+
+
+class WrongCastType(InterpreterError):
+    def __init__(self, exp_type: Type):
+        message = f'Unknown target type {exp_type}")'
+        super().__init__(message)
+
+
+class DivisionByZeroError(InterpreterError):
+    def __init__(self):
+        message = f'Cant divide by zero")'
+        super().__init__(message)
+
+
+class NotMatchingTypesInBinaryExpression(InterpreterError):
+    def __init__(self, left_type: Type, right_type: Type):
+        message = f'Not matching types in binary operation "{left_type}"!="{right_type}")'
+        super().__init__(message)
