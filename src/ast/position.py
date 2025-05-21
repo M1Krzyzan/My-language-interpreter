@@ -20,4 +20,6 @@ class Position:
         return f"Line {self.line}, Column {self.column}"
 
     def __eq__(self, other):
-        return self.line == other.line and self.column == other.column
+        return (isinstance(other, Position) and
+                self.line == other.line and
+                self.column == other.column)
