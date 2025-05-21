@@ -24,7 +24,7 @@ from src.ast.expressions import (
 from src.ast.statemens import ContinueStatement, BreakStatement, AssignmentStatement, Statement, CatchStatement, \
     TryCatchStatement, ReturnStatement, IfStatement, Attribute, StatementBlock, FunctionCall
 from src.ast.visitor import Visitor
-from src.errors.interpreter_errors import MissingMainFunctionDeclaration, UnknownFunctionCall
+from src.errors.interpreter_errors import MissingMainFunctionDeclaration, UnknownFunctionCall, InterpreterError
 from src.interpreter.builtins import builtin_functions, builtin_exceptions
 from src.interpreter.context import FunctionContext
 from src.interpreter.variable import TypedVariable
@@ -141,10 +141,10 @@ class ProgramExecutor(Visitor):
 
     def visit_and_expression(self, and_expression: AndExpression):
         and_expression.left.accept(self)
-        left = self.last_result
+        left = self._consume_last_result()
 
         and_expression.right.accept(self)
-        right = self.last_result
+        right = self._consume_last_result()
 
 
     def visit_casted_expression(self, casted_expression: CastedExpression):
@@ -216,6 +216,13 @@ class ProgramExecutor(Visitor):
         pass
 
     # def execute_builtin_print(self):
+
+    def _consume_last_result(self):
+        if self.last_result is None:
+            raise InterpreterError("There is no value to return")
+        value = self.last_result
+        self.last_result = None
+        return value
 
 
 
