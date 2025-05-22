@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-from src.ast.core_structures import Program, Function, Exception
+from src.ast.core_structures import Program, Function, CustomException
 from src.ast.expressions import OrExpression, AndExpression, CastedExpression, \
     AttributeCall, Variable, BoolLiteral, FloatLiteral, StringLiteral, \
     IntLiteral, GreaterThanExpression, EqualsExpression, NotEqualsExpression, LessThanExpression, \
@@ -21,7 +21,7 @@ class Visitor(ABC):
         pass
 
     @abstractmethod
-    def visit_exception(self, exception: Exception):
+    def visit_exception(self, exception: CustomException):
         pass
 
     @abstractmethod

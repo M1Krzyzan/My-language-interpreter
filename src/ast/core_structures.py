@@ -31,7 +31,7 @@ class Function(Node):
 
 
 @dataclass
-class Exception(Node):
+class CustomException(Node):
     position: Position
     name: str
     parameters: list[Parameter]
@@ -50,7 +50,7 @@ class Exception(Node):
 @dataclass
 class Program(Node):
     functions: dict[str, Function]
-    exceptions: dict[str, Exception]
+    exceptions: dict[str, CustomException]
 
     def equals(self, other) -> bool:
         return (self.functions == other.functions and

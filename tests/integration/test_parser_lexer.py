@@ -2,7 +2,7 @@ from io import StringIO
 
 import pytest
 
-from src.ast.core_structures import Function, Exception
+from src.ast.core_structures import Function, CustomException
 from src.ast.expressions import *
 from src.ast.statemens import *
 from src.errors.parser_errors import UnexpectedToken, ExpectedDeclarationError
@@ -339,7 +339,7 @@ def test_parse_program():
     assert arg5.value == "\n"
 
     # exception ValueError
-    assert isinstance(value_error_exception, Exception)
+    assert isinstance(value_error_exception, CustomException)
     assert value_error_exception.name == "ValueError"
     assert value_error_exception.position == Position(2, 5)
 

@@ -2,7 +2,7 @@ import io
 import operator
 from typing import List, Callable
 
-from src.ast.core_structures import Program, Function, Exception
+from src.ast.core_structures import Program, Function, CustomException
 from src.ast.expressions import (
     GreaterThanExpression,
     GreaterThanOrEqualsExpression,
@@ -23,7 +23,7 @@ from src.ast.expressions import (
     AttributeCall, UnaryMinusExpression, NegatedExpression, CastedExpression, AndExpression, OrExpression
 )
 from src.ast.position import Position
-from src.ast.statemens import ContinueStatement, BreakStatement, AssignmentStatement, Statement, CatchStatement, \
+from src.ast.statemens import ContinueStatement, BreakStatement, AssignmentStatement, CatchStatement, \
     TryCatchStatement, ReturnStatement, IfStatement, Attribute, StatementBlock, FunctionCall, WhileStatement, \
     ThrowStatement
 from src.ast.types import Type
@@ -92,7 +92,7 @@ class ProgramExecutor(Visitor):
     def visit_function(self, function: Function):
         self.functions[function.name] = function
 
-    def visit_exception(self, exception: Exception):
+    def visit_exception(self, exception: CustomException):
         self.exceptions[exception.name] = exception
 
     def visit_statement_block(self, statement_block: StatementBlock):
@@ -105,7 +105,11 @@ class ProgramExecutor(Visitor):
         self.context_stack[-1].pop_scope()
 
     def visit_attribute(self, attribute: Attribute):
-        pass
+        if attribute.expression:
+            attribute.expression.accept(self)
+            value = self._consume_last_result()
+        else:
+            value = None
 
     def visit_if_statement(self, if_statement: IfStatement):
         if_statement.condition.accept(self)
@@ -193,7 +197,7 @@ class ProgramExecutor(Visitor):
             eval_arguments.append(self._consume_last_result())
 
         if (exception_class := self.exceptions.get(throw_statement.name)) is None:
-            raise InterpreterError()
+            raise InterpreterError("place holder")
 
         raise exception_class(*eval_arguments)
 
@@ -295,10 +299,10 @@ class ProgramExecutor(Visitor):
     def visit_attribute_call(self, attribute_call: AttributeCall):
         exception = self.context_stack[-1].get_exception(attribute_call.var_name)
         if exception is None:
-            raise InterpreterError()
+            raise InterpreterError("place holder")
 
         if not hasattr(exception, attribute_call.attr_name):
-            raise InterpreterError()
+            raise InterpreterError("place holder")
 
         self.last_result = getattr(exception, attribute_call.attr_name)
 

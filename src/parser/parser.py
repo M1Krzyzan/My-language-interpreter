@@ -112,7 +112,7 @@ class Parser:
         if (attributes := self._parse_attributes()) is None:
             raise ExpectedAttributesError(self.current_token.position, "exception declaration")
 
-        on_exception(Exception(position, name, parameters, attributes))
+        on_exception(CustomException(position, name, parameters, attributes))
 
         return True
 
