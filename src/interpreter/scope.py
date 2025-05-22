@@ -5,9 +5,8 @@ from src.interpreter.variable import TypedVariable
 
 
 class Scope:
-    def __init__(self, parent_scope: 'Scope' = None):
+    def __init__(self):
         self.variables = {}
-        self.parent_scope = parent_scope
 
     def declare_variable(self, variable: TypedVariable):
         if self.contains(variable.name):

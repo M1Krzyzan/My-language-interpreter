@@ -1,4 +1,5 @@
 import io
+import operator
 from typing import List, Callable
 
 from src.ast.core_structures import Program, Function, Exception
@@ -23,7 +24,8 @@ from src.ast.expressions import (
 )
 from src.ast.position import Position
 from src.ast.statemens import ContinueStatement, BreakStatement, AssignmentStatement, Statement, CatchStatement, \
-    TryCatchStatement, ReturnStatement, IfStatement, Attribute, StatementBlock, FunctionCall
+    TryCatchStatement, ReturnStatement, IfStatement, Attribute, StatementBlock, FunctionCall, WhileStatement, \
+    ThrowStatement
 from src.ast.types import Type
 from src.ast.visitor import Visitor
 from src.errors.interpreter_errors import MissingMainFunctionDeclaration, UnknownFunctionCall, InterpreterError, \
@@ -42,11 +44,27 @@ VALUE_TO_TYPE_MAP = {
     str: Type.StringType
 }
 
+COMPARISON_OPERATORS = {
+    'equals': operator.eq,
+    'not_equals': operator.ne,
+    'less_than': operator.lt,
+    'less_than_or_equals': operator.le,
+    'greater_than': operator.gt,
+    'greater_than_or_equals': operator.ge,
+}
+
+
+class RuntimeLangException:
+    def __init__(self, instance):
+        self.instance = instance
+
 
 class ProgramExecutor(Visitor):
     context_stack: List[FunctionContext]
 
     def __init__(self, recursion_limit=100):
+        self.break_flag = False
+        self.continue_flag = False
         self.return_flag = False
         self.last_result = None
         self.functions = {}
@@ -82,16 +100,41 @@ class ProgramExecutor(Visitor):
         for statement in statement_block.statements:
             statement.accept(self)
 
-            if self.return_flag:
-                self.return_flag = False
-                return
+            if self.break_flag or self.continue_flag or self.return_flag:
+                break
         self.context_stack[-1].pop_scope()
 
     def visit_attribute(self, attribute: Attribute):
         pass
 
     def visit_if_statement(self, if_statement: IfStatement):
-        pass
+        if_statement.condition.accept(self)
+        condition_value = self._consume_last_result()
+        condition_value_type = VALUE_TO_TYPE_MAP.get(type(condition_value))
+
+        if condition_value_type != Type.BoolType:
+            raise WrongExpressionType(condition_value_type)
+
+        if condition_value:
+            if_statement.if_block.accept(self)
+            return
+
+        for elif_condition, elif_block in if_statement.elif_statement:
+            elif_condition.accept(self)
+            elif_condition_value = self._consume_last_result()
+            elif_condition_value_type = VALUE_TO_TYPE_MAP.get(type(elif_condition_value))
+
+            if elif_condition_value_type != Type.BoolType:
+                raise WrongExpressionType(condition_value_type)
+
+            if elif_condition_value:
+                elif_block.accept(self)
+                return
+
+        if if_statement.else_block is not None:
+            if_statement.else_block.accept(self)
+
+        self.last_result = None
 
     def visit_return_statement(self, return_statement: ReturnStatement):
         if return_statement.expression is not None:
@@ -99,16 +142,60 @@ class ProgramExecutor(Visitor):
         self.return_flag = True
 
     def visit_try_catch_statement(self, try_catch_statement: TryCatchStatement):
-        pass
+        try:
+            try_catch_statement.try_block.accept(self)
+        except RuntimeLangException as runtime_exception:
+            handled = False
+            exception_obj = runtime_exception.instance
+
+            for catch in try_catch_statement.catch_statements:
+                if catch.exception == type(runtime_exception).__name__:
+                    self.context_stack[-1].push_scope()
+                    self.context_stack[-1].bind_exception(exception_obj)
+                    catch.block.accept(self)
+                    handled = True
+                    break
+
+            if not handled:
+                raise runtime_exception
 
     def visit_catch_statement(self, catch_statement: CatchStatement):
         pass
 
-    def visit_while_statement(self, statement: Statement):
-        pass
+    def visit_while_statement(self, while_statement: WhileStatement):
+        while_statement.condition.accept(self)
+        condition_value = self._consume_last_result()
+        condition_value_type = VALUE_TO_TYPE_MAP.get(type(condition_value))
 
-    def visit_throw_statement(self, statement: Statement):
-        pass
+        if condition_value_type != Type.BoolType:
+            raise WrongExpressionType(condition_value_type)
+
+        while condition_value:
+            while_statement.block.accept(self)
+
+            if self.break_flag:
+                self.break_flag = False
+                break
+
+            if self.continue_flag:
+                self.continue_flag = False
+                continue
+
+            while_statement.condition.accept(self)
+            condition_value = self._consume_last_result()
+
+        self.last_result = None
+
+    def visit_throw_statement(self, throw_statement: ThrowStatement):
+        eval_arguments = []
+        for argument in throw_statement.args:
+            argument.accept(self)
+            eval_arguments.append(self._consume_last_result())
+
+        if (exception_class := self.exceptions.get(throw_statement.name)) is None:
+            raise InterpreterError()
+
+        raise exception_class(*eval_arguments)
 
     def visit_function_call(self, function_call: FunctionCall):
         function_name = function_call.name
@@ -123,7 +210,7 @@ class ProgramExecutor(Visitor):
         eval_arguments = []
         for argument in function_call.arguments:
             argument.accept(self)
-            eval_arguments.append(self.last_result)
+            eval_arguments.append(self._consume_last_result())
 
         call_context = FunctionContext(function_call.name)
         self.context_stack.append(call_context)
@@ -134,6 +221,8 @@ class ProgramExecutor(Visitor):
 
         try:
             function_def.statement_block.accept(self)
+            if self.break_flag or self.continue_flag:
+                raise InterpreterError("m")
         finally:
             self.context_stack.pop()
 
@@ -150,7 +239,14 @@ class ProgramExecutor(Visitor):
         name = assigment_statement.name
         value_type = VALUE_TO_TYPE_MAP.get(type(self.last_result))
         variable = TypedVariable(name, value_type, self._consume_last_result())
-        self.context_stack[-1].declare_variable(variable)
+        context = self.context_stack[-1]
+
+        if (declared_variable := context.get_variable(name)) is not None:
+            if declared_variable.type != variable.type:
+                raise WrongExpressionType(variable.type)
+            context.assign_variable(name, variable.value)
+        else:
+            context.declare_variable(variable)
 
     def visit_or_expression(self, or_expression: OrExpression):
         or_expression.left.accept(self)
@@ -197,7 +293,14 @@ class ProgramExecutor(Visitor):
         self.last_result = -value
 
     def visit_attribute_call(self, attribute_call: AttributeCall):
-        pass
+        exception = self.context_stack[-1].get_exception(attribute_call.var_name)
+        if exception is None:
+            raise InterpreterError()
+
+        if not hasattr(exception, attribute_call.attr_name):
+            raise InterpreterError()
+
+        self.last_result = getattr(exception, attribute_call.attr_name)
 
     def visit_variable(self, variable: Variable):
         typed_variable = self.context_stack[-1].get_variable(variable.name)
@@ -205,7 +308,7 @@ class ProgramExecutor(Visitor):
         self.last_result = variable_value
 
     def visit_bool_literal(self, bool_literal: BoolLiteral):
-        self.last_result = bool_literal.value
+        self.last_result = True if bool_literal.value == "true" else False
 
     def visit_float_literal(self, float_literal: FloatLiteral):
         self.last_result = float_literal.value
@@ -262,7 +365,24 @@ class ProgramExecutor(Visitor):
             self.last_result = left / right
 
     def visit_modulo_expression(self, modulo_expression: ModuloExpression):
-        pass
+        modulo_expression.left.accept(self)
+        left = self._consume_last_result()
+
+        left_type = VALUE_TO_TYPE_MAP.get(type(left))
+        if left_type != Type.FloatType and left_type != Type.IntType:
+            raise WrongExpressionType(left_type)
+
+        modulo_expression.right.accept(self)
+        right = self._consume_last_result()
+
+        right_type = VALUE_TO_TYPE_MAP.get(type(right))
+        if right_type != Type.FloatType and right_type != Type.IntType:
+            raise WrongExpressionType(right_type)
+
+        if left_type != right_type:
+            raise NotMatchingTypesInBinaryExpression(left_type, right_type)
+
+        self.last_result = round(left % right, 15)
 
     def visit_plus_expression(self, plus_expression: PlusExpression):
         plus_expression.left.accept(self)
@@ -304,33 +424,43 @@ class ProgramExecutor(Visitor):
 
         self.last_result = left - right
 
-    def visit_equals_expression(self, equals_expression: EqualsExpression):
-        equals_expression.left.accept(self)
+    def visit_equals_expression(self, expression: EqualsExpression):
+        self._visit_binary_comparison(expression, COMPARISON_OPERATORS['equals'])
+
+    def visit_not_equals_expression(self, expression: NotEqualsExpression):
+        self._visit_binary_comparison(expression, COMPARISON_OPERATORS['not_equals'])
+
+    def visit_less_than_expression(self, expression: LessThanExpression):
+        self._visit_binary_comparison(expression, COMPARISON_OPERATORS['less_than'])
+
+    def visit_less_than_or_equals_expression(self, expression: LessThanOrEqualsExpression):
+        self._visit_binary_comparison(expression, COMPARISON_OPERATORS['less_than_or_equals'])
+
+    def visit_greater_than_expression(self, expression: GreaterThanExpression):
+        self._visit_binary_comparison(expression, COMPARISON_OPERATORS['greater_than'])
+
+    def visit_greater_than_or_equals_expression(self, expression: GreaterThanOrEqualsExpression):
+        self._visit_binary_comparison(expression, COMPARISON_OPERATORS['greater_than_or_equals'])
+
+    def _visit_binary_comparison(self, expr, op_func):
+        expr.left.accept(self)
         left = self._consume_last_result()
+        left_type = VALUE_TO_TYPE_MAP.get(type(left))
 
-        equals_expression.right.accept(self)
+        expr.right.accept(self)
         right = self._consume_last_result()
+        right_type = VALUE_TO_TYPE_MAP.get(type(right))
 
-    def visit_not_equals_expression(self, not_equals_expression: NotEqualsExpression):
-        pass
+        if left_type != right_type:
+            raise NotMatchingTypesInBinaryExpression(left_type, right_type)
 
-    def visit_less_than_expression(self, less_than_expression: LessThanExpression):
-        pass
-
-    def visit_less_than_or_equals_expression(self, less_than_or_equals_expression: LessThanOrEqualsExpression):
-        pass
-
-    def visit_greater_than_or_equals_expression(self, greater_than_or_equals_expression: GreaterThanOrEqualsExpression):
-        pass
-
-    def visit_greater_than_expression(self, greater_than_expression: GreaterThanExpression):
-        pass
+        self.last_result = op_func(left, right)
 
     def visit_break_statement(self, break_statement: BreakStatement):
-        pass
+        self.break_flag = True
 
     def visit_continue_statement(self, continue_statement: ContinueStatement):
-        pass
+        self.continue_flag = True
 
     def _consume_last_result(self):
         if self.last_result is None:
@@ -342,68 +472,72 @@ class ProgramExecutor(Visitor):
     def _cast_expression(self, to_type: Type):
         value = self._consume_last_result()
         origin_type = type(value)
-        if isinstance(origin_type, int.__class__):
-            self.last_result = self._cast_int(to_type, value)
-        elif isinstance(origin_type, float.__class__):
-            self.last_result = self._cast_float(to_type, value)
-        elif isinstance(origin_type, bool.__class__):
-            self.last_result = self._cast_boolean(to_type, value)
-        elif isinstance(origin_type, str.__class__):
-            self.last_result = self._cast_string(to_type, value)
-        else:
+
+        cast_map = {
+            int: self._cast_int,
+            float: self._cast_float,
+            bool: self._cast_boolean,
+            str: self._cast_string,
+        }
+
+        cast_func = cast_map.get(origin_type)
+        if not cast_func:
             raise WrongExpressionType(origin_type)
 
-    @staticmethod
-    def _cast_int(to_type: Type, value: int) -> [int | float | bool | str]:
-        if to_type == Type.IntType:
-            return value
-        elif to_type == Type.FloatType:
-            return float(value)
-        elif to_type == Type.BoolType:
-            return False if value == 0 else True
-        elif to_type == Type.StringType:
-            return str(value)
-        else:
-            WrongCastType(to_type)
+        self.last_result = cast_func(to_type, value)
 
     @staticmethod
-    def _cast_float(to_type: Type, value: float) -> [int | float | bool | str]:
-        if to_type == Type.IntType:
-            return int(value)
-        elif to_type == Type.FloatType:
-            return value
-        elif to_type == Type.BoolType:
-            return False if value == 0.0 else True
-        elif to_type == Type.StringType:
-            return str(value)
-        else:
-            WrongCastType(to_type)
+    def _check_numeric_type(value_type: Type):
+        if value_type not in (Type.IntType, Type.FloatType):
+            raise WrongExpressionType(value_type)
 
     @staticmethod
-    def _cast_boolean(to_type: Type, value: bool) -> [int | float | bool | str]:
-        if to_type == Type.IntType:
-            return 1 if value else 0
-        elif to_type == Type.FloatType:
-            return 1.0 if value else 0.0
-        elif to_type == Type.BoolType:
-            return value
-        elif to_type == Type.StringType:
-            return "true" if value else "false"
-        else:
-            WrongCastType(to_type)
+    def _cast_int(to_type: Type, value: int):
+        cast_map = {
+            Type.IntType: lambda v: v,
+            Type.FloatType: float,
+            Type.BoolType: lambda v: v != 0,
+            Type.StringType: str,
+        }
+        if to_type not in cast_map:
+            raise WrongCastType(to_type)
+        return cast_map[to_type](value)
 
     @staticmethod
-    def _cast_string(to_type: Type, value: str) -> [int | float | bool | str]:
-        if to_type == Type.IntType:
-            return int(value)
-        elif to_type == Type.FloatType:
-            return float(value)
-        elif to_type == Type.BoolType:
-            return False if value == '' else True
-        elif to_type == Type.StringType:
-            return value
-        else:
-            WrongCastType(to_type)
+    def _cast_float(to_type: Type, value: float):
+        cast_map = {
+            Type.IntType: int,
+            Type.FloatType: lambda v: v,
+            Type.BoolType: lambda v: v != 0.0,
+            Type.StringType: str,
+        }
+        if to_type not in cast_map:
+            raise WrongCastType(to_type)
+        return cast_map[to_type](value)
+
+    @staticmethod
+    def _cast_boolean(to_type: Type, value: bool):
+        cast_map = {
+            Type.IntType: lambda v: 1 if v else 0,
+            Type.FloatType: lambda v: 1.0 if v else 0.0,
+            Type.BoolType: lambda v: v,
+            Type.StringType: lambda v: "true" if v else "false",
+        }
+        if to_type not in cast_map:
+            raise WrongCastType(to_type)
+        return cast_map[to_type](value)
+
+    @staticmethod
+    def _cast_string(to_type: Type, value: str):
+        cast_map = {
+            Type.IntType: int,
+            Type.FloatType: float,
+            Type.BoolType: lambda v: v != '',
+            Type.StringType: lambda v: v,
+        }
+        if to_type not in cast_map:
+            raise WrongCastType(to_type)
+        return cast_map[to_type](value)
 
 
 def main():

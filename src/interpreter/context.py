@@ -31,8 +31,14 @@ class FunctionContext:
                 return
         raise InterpreterError(f"Variable '{name}' not found in any scope.")
 
-    def get_variable(self, name: str) -> TypedVariable:
+    def get_variable(self, name: str) -> Optional[TypedVariable]:
         for scope in reversed(self.scope_stack):
             if scope.contains(name):
                 return scope.get_variable(name)
-        raise InterpreterError(f"Variable '{name}' not found in any scope.")
+        return None
+
+    def get_exception(self, var_name):
+        pass
+
+    def bind_exception(self, exception_obj):
+        pass
