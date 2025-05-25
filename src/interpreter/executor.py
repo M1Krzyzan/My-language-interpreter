@@ -32,11 +32,11 @@ from src.errors.interpreter_errors import MissingMainFunctionDeclaration, Unknow
     WrongExpressionType, WrongCastType, DivisionByZeroError, NotMatchingTypesInBinaryExpression
 from src.interpreter.builtins import builtin_functions, builtin_exceptions
 from src.interpreter.context import FunctionContext
-from src.interpreter.variable import TypedVariable
+from src.interpreter.typed_value import TypedValue
 from src.lexer.lexer import DefaultLexer
 from src.lexer.source import Source
 from src.parser.parser import Parser
-
+from src.interpreter.runtime_exception import RuntimeUserException
 VALUE_TO_TYPE_MAP = {
     int: Type.IntType,
     float: Type.FloatType,
@@ -54,15 +54,11 @@ COMPARISON_OPERATORS = {
 }
 
 
-class RuntimeLangException:
-    def __init__(self, instance):
-        self.instance = instance
-
-
 class ProgramExecutor(Visitor):
     context_stack: List[FunctionContext]
 
-    def __init__(self, recursion_limit=100):
+    def __init__(self, recursion_limit=30):
+        self.exception_to_throw = None
         self.break_flag = False
         self.continue_flag = False
         self.return_flag = False
@@ -74,6 +70,8 @@ class ProgramExecutor(Visitor):
 
     def execute(self, program: Program):
         program.accept(self)
+        if self.exception_to_throw:
+            print(f"\033[31m{self.exception_to_throw}")
 
     def visit_program(self, program: Program):
         if program.functions.get("main") is None:
@@ -100,16 +98,13 @@ class ProgramExecutor(Visitor):
         for statement in statement_block.statements:
             statement.accept(self)
 
-            if self.break_flag or self.continue_flag or self.return_flag:
-                break
+            if (self.break_flag or self.continue_flag or
+                    self.return_flag or self.exception_to_throw):
+                return
         self.context_stack[-1].pop_scope()
 
     def visit_attribute(self, attribute: Attribute):
-        if attribute.expression:
             attribute.expression.accept(self)
-            value = self._consume_last_result()
-        else:
-            value = None
 
     def visit_if_statement(self, if_statement: IfStatement):
         if_statement.condition.accept(self)
@@ -146,25 +141,26 @@ class ProgramExecutor(Visitor):
         self.return_flag = True
 
     def visit_try_catch_statement(self, try_catch_statement: TryCatchStatement):
-        try:
-            try_catch_statement.try_block.accept(self)
-        except RuntimeLangException as runtime_exception:
-            handled = False
-            exception_obj = runtime_exception.instance
+        try_catch_statement.try_block.accept(self)
 
+        if self.exception_to_throw:
             for catch in try_catch_statement.catch_statements:
-                if catch.exception == type(runtime_exception).__name__:
-                    self.context_stack[-1].push_scope()
-                    self.context_stack[-1].bind_exception(exception_obj)
-                    catch.block.accept(self)
-                    handled = True
+                catch.accept(self)
+                if not self.exception_to_throw:
                     break
 
-            if not handled:
-                raise runtime_exception
-
     def visit_catch_statement(self, catch_statement: CatchStatement):
-        pass
+        catch = catch_statement
+        exception = self.exception_to_throw
+        if catch.exception == exception.definition.name or catch.exception == "BasicException":
+            self.context_stack[-1].push_scope()
+            for attr_name, value in exception.attributes.items():
+                value_type = VALUE_TO_TYPE_MAP.get(type(value))
+                typed_value = TypedValue(value_type, value)
+                self.context_stack[-1].add_attribute(catch.name, attr_name, typed_value)
+            catch.block.accept(self)
+            self.context_stack[-1].pop_scope()
+            self.exception_to_throw = None
 
     def visit_while_statement(self, while_statement: WhileStatement):
         while_statement.condition.accept(self)
@@ -191,15 +187,30 @@ class ProgramExecutor(Visitor):
         self.last_result = None
 
     def visit_throw_statement(self, throw_statement: ThrowStatement):
+        if (exception_def := self.exceptions.get(throw_statement.name)) is None:
+            raise InterpreterError("place holder")
+
         eval_arguments = []
         for argument in throw_statement.args:
             argument.accept(self)
             eval_arguments.append(self._consume_last_result())
 
-        if (exception_class := self.exceptions.get(throw_statement.name)) is None:
-            raise InterpreterError("place holder")
+        context = self.context_stack[-1]
+        context.push_scope()
+        for param, value in zip(exception_def.parameters, eval_arguments):
+            value_type = VALUE_TO_TYPE_MAP.get(type(value))
+            if value_type != param.type:
+                raise WrongExpressionType(value_type)
+            typed_value = TypedValue(value=value, type=param.type)
+            context.declare_variable(param.name, typed_value)
 
-        raise exception_class(*eval_arguments)
+        eval_attributes = {}
+        for attr in exception_def.attributes:
+            attr.expression.accept(self)
+            eval_attributes[attr.name] = self._consume_last_result()
+
+        context.pop_scope()
+        self.exception_to_throw = RuntimeUserException(exception_def, eval_attributes, throw_statement.position)
 
     def visit_function_call(self, function_call: FunctionCall):
         function_name = function_call.name
@@ -216,12 +227,15 @@ class ProgramExecutor(Visitor):
             argument.accept(self)
             eval_arguments.append(self._consume_last_result())
 
+        if len(self.context_stack) >= self.recursion_limit:
+            raise InterpreterError("recursion limit reached")
+
         call_context = FunctionContext(function_call.name)
         self.context_stack.append(call_context)
 
         for param, value in zip(function_def.parameters, eval_arguments):
-            variable = TypedVariable(name=param.name, value=value, type=param.type)
-            self.context_stack[-1].declare_variable(variable)
+            typed_value = TypedValue(value=value, type=param.type)
+            self.context_stack[-1].declare_variable(param.name, typed_value)
 
         try:
             function_def.statement_block.accept(self)
@@ -229,6 +243,7 @@ class ProgramExecutor(Visitor):
                 raise InterpreterError("m")
         finally:
             self.context_stack.pop()
+            self.return_flag = False
 
     def visit_builtin_function_call(self, function_call: FunctionCall, builtin_function: Callable):
         eval_arguments = []
@@ -241,16 +256,17 @@ class ProgramExecutor(Visitor):
     def visit_assignment_statement(self, assigment_statement: AssignmentStatement):
         assigment_statement.expression.accept(self)
         name = assigment_statement.name
-        value_type = VALUE_TO_TYPE_MAP.get(type(self.last_result))
-        variable = TypedVariable(name, value_type, self._consume_last_result())
-        context = self.context_stack[-1]
+        value = self._consume_last_result()
+        value_type = VALUE_TO_TYPE_MAP.get(type(value))
 
+        context = self.context_stack[-1]
         if (declared_variable := context.get_variable(name)) is not None:
-            if declared_variable.type != variable.type:
-                raise WrongExpressionType(variable.type)
-            context.assign_variable(name, variable.value)
+            if declared_variable.type != value_type:
+                raise WrongExpressionType(value_type)
+            context.assign_variable(name, value)
         else:
-            context.declare_variable(variable)
+            typed_value = TypedValue(value_type, value)
+            context.declare_variable(name, typed_value)
 
     def visit_or_expression(self, or_expression: OrExpression):
         or_expression.left.accept(self)
@@ -297,14 +313,10 @@ class ProgramExecutor(Visitor):
         self.last_result = -value
 
     def visit_attribute_call(self, attribute_call: AttributeCall):
-        exception = self.context_stack[-1].get_exception(attribute_call.var_name)
-        if exception is None:
+        attribute = self.context_stack[-1].get_attribute(attribute_call.var_name, attribute_call.attr_name)
+        if attribute is None:
             raise InterpreterError("place holder")
-
-        if not hasattr(exception, attribute_call.attr_name):
-            raise InterpreterError("place holder")
-
-        self.last_result = getattr(exception, attribute_call.attr_name)
+        self.last_result = attribute.value
 
     def visit_variable(self, variable: Variable):
         typed_variable = self.context_stack[-1].get_variable(variable.name)
@@ -542,7 +554,6 @@ class ProgramExecutor(Visitor):
         if to_type not in cast_map:
             raise WrongCastType(to_type)
         return cast_map[to_type](value)
-
 
 def main():
     input_code = """

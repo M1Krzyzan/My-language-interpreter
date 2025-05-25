@@ -15,11 +15,10 @@ builtin_functions = {
 }
 
 
-class BasicException(Exception):
+class BasicException:
     def __init__(self, position: Position, message: str) -> None:
-        super().__init__(message)
-        self.message = message
         self.position = position
+        self.message = message
 
 
 builtin_exceptions = {

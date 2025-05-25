@@ -129,7 +129,7 @@ class ReturnStatement(Statement):
 class Attribute:
     name: str
     type: Type
-    expression: Optional[Expression] = field(default_factory=list)
+    expression: Expression
 
     def __eq__(self, other):
         return (self.name == other.name and

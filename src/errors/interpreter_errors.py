@@ -19,7 +19,7 @@ class MissingMainFunctionDeclaration(InterpreterError):
 
 
 class UnknownFunctionCall(InterpreterError):
-    def __init__(self, position: Position, function_name: str):
+    def __init__(self, function_name: str):
         message = f'Undeclared function call(name="{function_name}")'
         super().__init__(message)
 

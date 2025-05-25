@@ -2,7 +2,7 @@ from typing import Optional
 
 from src.errors.interpreter_errors import InterpreterError
 from src.interpreter.scope import Scope
-from src.interpreter.variable import TypedVariable
+from src.interpreter.typed_value import TypedValue
 
 
 class FunctionContext:
@@ -19,10 +19,10 @@ class FunctionContext:
             raise InterpreterError("Cannot pop the base (function) scope.")
         self.scope_stack.pop()
 
-    def declare_variable(self, variable: TypedVariable):
-        if self.scope_stack[-1].contains(variable.name):
-            raise InterpreterError(f"Variable '{variable.name}' already declared.")
-        self.scope_stack[-1].declare_variable(variable)
+    def declare_variable(self, name: str, value: TypedValue):
+        if self.scope_stack[-1].contains(name):
+            raise InterpreterError(f"Variable '{name}' already declared.")
+        self.scope_stack[-1].declare_variable(name, value)
 
     def assign_variable(self, name: str, value: int|float|bool|str):
         for scope in reversed(self.scope_stack):
@@ -31,14 +31,19 @@ class FunctionContext:
                 return
         raise InterpreterError(f"Variable '{name}' not found in any scope.")
 
-    def get_variable(self, name: str) -> Optional[TypedVariable]:
+    def get_variable(self, name: str) -> Optional[TypedValue]:
         for scope in reversed(self.scope_stack):
             if scope.contains(name):
                 return scope.get_variable(name)
         return None
 
-    def get_exception(self, var_name):
-        pass
+    def get_attribute(self, exception_id: str, attribute_name: str) -> Optional[TypedValue]:
+        for scope in reversed(self.scope_stack):
+            if scope.contains_attribute(exception_id, attribute_name):
+                return scope.get_attribute(exception_id, attribute_name)
+        return None
 
-    def bind_exception(self, exception_obj):
-        pass
+    def add_attribute(self, exception_id: str, attribute_name: str, value: TypedValue):
+        if self.scope_stack[-1].contains_attribute(exception_id, attribute_name):
+            raise InterpreterError(f"Attribute '{attribute_name}' for exception id '{exception_id}' already declared.")
+        self.scope_stack[-1].add_attribute(exception_id, attribute_name, value)
