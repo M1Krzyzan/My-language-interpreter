@@ -6,8 +6,10 @@ from src.interpreter.builtins import BasicException
 
 class RuntimeUserException(BasicException):
     def __init__(self, definition: CustomException,
-                 attributes: dict[str, Any]):
-        super().__init__(attributes["position"], attributes["message"])
+                 attributes: list[tuple[str, Any]]):
+        position = next((attr for name, attr in attributes if name == 'position'))
+        message = next((attr for name, attr in attributes if name == 'message'))
+        super().__init__(position, message)
         self.definition = definition
         self.attributes = attributes
 

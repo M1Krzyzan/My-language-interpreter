@@ -2,7 +2,8 @@ from src.ast.position import Position
 
 
 def builtin_print(*args) -> None:
-    print(*args)
+    transform = lambda x: "true" if x is True else "false" if x is False else x
+    print(*map(transform, args))
 
 
 def builtin_input() -> str:

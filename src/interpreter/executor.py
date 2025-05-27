@@ -52,7 +52,7 @@ class ProgramExecutor(Visitor):
 
     def visit_program(self, program: Program):
         if program.functions.get("main") is None:
-            raise MissingMainFunctionDeclaration(Position(1, 1))
+            raise MissingMainFunctionDeclaration()
 
         for function in program.functions.values():
             function.accept(self)
@@ -71,17 +71,17 @@ class ProgramExecutor(Visitor):
         self.exceptions[exception.name] = exception
 
     def visit_statement_block(self, statement_block: StatementBlock):
-        self.context_stack[-1].push_scope()
+        context = self.context_stack[-1]
+        context.push_scope()
+
         for statement in statement_block.statements:
             statement.accept(self)
 
-            if self.break_flag or self.continue_flag or self.exception_to_throw:
-                self.context_stack[-1].pop_scope()
-                return
-            if self.return_flag:
-                self.context_stack[-1].pop_scope()
-                return
-        self.context_stack[-1].pop_scope()
+            if (self.return_flag or self.break_flag or
+                    self.continue_flag or self.exception_to_throw):
+                break
+
+        context.pop_scope()
 
     def visit_attribute(self, attribute: Attribute):
         attribute.expression.accept(self)
@@ -132,16 +132,19 @@ class ProgramExecutor(Visitor):
     def visit_catch_statement(self, catch_statement: CatchStatement):
         catch = catch_statement
         exception = self.exception_to_throw
-
+        context = self.context_stack[-1]
         if catch.exception == exception.definition.name or catch.exception == "BasicException":
-            self.context_stack[-1].push_scope()
-            for attr_name, value in exception.attributes.items():
+            context.push_scope()
+
+            for attr_name, value in exception.attributes:
                 value_type = VALUE_TO_TYPE_MAP.get(type(value))
                 typed_value = TypedValue(value_type, value)
-                if not self.context_stack[-1].add_attribute(catch.name, attr_name, typed_value):
-                    raise AttributeAlreadyDeclaredError(attr_name)
+                if not context.add_attribute(catch.name, attr_name, typed_value):
+                    raise AttributeAlreadyDeclaredError(attr_name, catch.name, catch_statement.position)
+
             catch.block.accept(self)
-            self.context_stack[-1].pop_scope()
+
+            context.pop_scope()
             self.exception_to_throw = None
 
     def visit_while_statement(self, while_statement: WhileStatement):
@@ -170,7 +173,7 @@ class ProgramExecutor(Visitor):
 
     def visit_throw_statement(self, throw_statement: ThrowStatement):
         if (exception_def := self.exceptions.get(throw_statement.name)) is None:
-            raise UndefinedExceptionError(throw_statement.name)
+            raise UndefinedExceptionError(throw_statement.name, throw_statement.position)
 
         eval_arguments = []
         for argument in throw_statement.args:
@@ -178,7 +181,10 @@ class ProgramExecutor(Visitor):
             eval_arguments.append(self._consume_last_result())
 
         if len(eval_arguments) != len(exception_def.parameters):
-            raise UndefinedExceptionError(throw_statement.name)
+            raise WrongNumberOfArguments(throw_statement.name,
+                                         len(eval_arguments),
+                                         len(exception_def.parameters),
+                                         throw_statement.position)
 
         context = self.context_stack[-1]
         context.push_scope()
@@ -193,13 +199,13 @@ class ProgramExecutor(Visitor):
             if not context.declare_variable(param.name, typed_value):
                 raise VariableAlreadyDeclaredError(param.name, param.position)
 
-        eval_attributes = {}
+        eval_attributes = []
         for attr in exception_def.attributes:
             attr.expression.accept(self)
-            eval_attributes[attr.name] = self._consume_last_result()
+            eval_attributes.append((attr.name, self._consume_last_result()))
 
         context.pop_scope()
-        eval_attributes["position"] = throw_statement.position
+        eval_attributes.append(("position", throw_statement.position))
         self.exception_to_throw = RuntimeUserException(exception_def, eval_attributes)
 
     def visit_function_call(self, function_call: FunctionCall):
@@ -209,7 +215,7 @@ class ProgramExecutor(Visitor):
         elif builtin_def := builtin_functions.get(function_name):
             self.visit_builtin_function_call(function_call, builtin_def)
         else:
-            raise UnknownFunctionCall(function_name, function_call.position)
+            raise UnknownFunctionCallError(function_name, function_call.position)
 
     def visit_user_function_call(self, function_call: FunctionCall, function_def: Function):
         eval_arguments = []
@@ -218,23 +224,27 @@ class ProgramExecutor(Visitor):
             eval_arguments.append(self._consume_last_result())
 
         if len(self.context_stack) >= self.recursion_limit:
-            raise RecursionTooDeepError()
+            raise RecursionTooDeepError(function_call.position)
 
         if len(eval_arguments) != len(function_def.parameters):
-            raise WrongNumberOfArguments(function_call.name)
+            raise WrongNumberOfArguments(function_call.name,
+                                         len(eval_arguments),
+                                         len(function_def.parameters),
+                                         function_call.position)
 
         call_context = FunctionContext(function_call.name)
         self.context_stack.append(call_context)
+        context = self.context_stack[-1]
 
         for param, value in zip(function_def.parameters, eval_arguments):
             typed_value = TypedValue(value=value, type=param.type)
-            if not self.context_stack[-1].declare_variable(param.name, typed_value):
+            if not context.declare_variable(param.name, typed_value):
                 raise VariableAlreadyDeclaredError(param.name, param.position)
 
         try:
             function_def.statement_block.accept(self)
             if self.break_flag or self.continue_flag:
-                raise LoopControlOutsideLoopError("break" if self.break_flag else "continue")
+                raise LoopControlOutsideLoopError("Break" if self.break_flag else "Continue")
             if self.return_flag:
                 if (return_type := VALUE_TO_TYPE_MAP.get(type(self.last_result))) != function_def.return_type:
                     raise InvalidReturnTypeException(return_type, function_def.return_type)
@@ -246,7 +256,7 @@ class ProgramExecutor(Visitor):
         eval_arguments = []
         for argument in function_call.arguments:
             argument.accept(self)
-            eval_arguments.append(self.last_result)
+            eval_arguments.append(self._consume_last_result())
         if function_call.name == "input":
             self.last_result = builtin_function()
         else:
@@ -303,7 +313,7 @@ class ProgramExecutor(Visitor):
         var_name = attribute_call.var_name
 
         if (attribute := context.get_attribute(var_name, attr_name)) is None:
-            raise UndefinedAttributeError(attribute_call.attr_name)
+            raise UndefinedAttributeError(attribute_call.attr_name, var_name, attribute_call.position)
 
         self.last_result = attribute.value
 
@@ -455,7 +465,7 @@ class ProgramExecutor(Visitor):
         return value
 
     @staticmethod
-    def _safe_divide(x: int|float, y: int|float, position: Position) -> int|float:
+    def _safe_divide(x: int | float, y: int | float, position: Position) -> int | float:
         if y == 0:
             raise DivisionByZeroError(position)
         x_type = VALUE_TO_TYPE_MAP.get(type(x))
@@ -482,7 +492,7 @@ class ProgramExecutor(Visitor):
                                                Type.BoolType],
                                            position)
 
-        self.last_result = cast_func(to_type, value, position)
+        self.last_result = cast_func(to_type, value)
 
     @staticmethod
     def _check_numeric_type(value_type: Type):
@@ -490,51 +500,44 @@ class ProgramExecutor(Visitor):
             raise WrongExpressionTypeError(value_type)
 
     @staticmethod
-    def _cast_int(to_type: Type, value: int, position: Position):
+    def _cast_int(to_type: Type, value: int):
         cast_map = {
             Type.IntType: lambda v: v,
             Type.FloatType: float,
             Type.BoolType: lambda v: v != 0,
             Type.StringType: str,
         }
-        if to_type not in cast_map:
-            raise WrongCastTypeError(to_type, position)
         return cast_map[to_type](value)
 
     @staticmethod
-    def _cast_float(to_type: Type, value: float, position: Position):
+    def _cast_float(to_type: Type, value: float):
         cast_map = {
             Type.IntType: int,
             Type.FloatType: lambda v: v,
             Type.BoolType: lambda v: v != 0.0,
             Type.StringType: str,
         }
-        if to_type not in cast_map:
-            raise WrongCastTypeError(to_type, position)
         return cast_map[to_type](value)
 
     @staticmethod
-    def _cast_boolean(to_type: Type, value: bool, position: Position):
+    def _cast_boolean(to_type: Type, value: bool):
         cast_map = {
             Type.IntType: lambda v: 1 if v else 0,
             Type.FloatType: lambda v: 1.0 if v else 0.0,
             Type.BoolType: lambda v: v,
             Type.StringType: lambda v: "true" if v else "false",
         }
-        if to_type not in cast_map:
-            raise WrongCastTypeError(to_type, position)
+
         return cast_map[to_type](value)
 
     @staticmethod
-    def _cast_string(to_type: Type, value: str, position: Position):
+    def _cast_string(to_type: Type, value: str):
         cast_map = {
             Type.IntType: int,
             Type.FloatType: float,
             Type.BoolType: lambda v: v != '',
             Type.StringType: lambda v: v,
         }
-        if to_type not in cast_map:
-            raise WrongCastTypeError(to_type, position)
         return cast_map[to_type](value)
 
     def _evaluate_arithmetic_expression(

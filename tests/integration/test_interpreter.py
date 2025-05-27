@@ -4,8 +4,7 @@ from unittest.mock import patch
 
 import pytest
 
-from src.errors.interpreter_errors import NotMatchingTypesInBinaryExpression, WrongExpressionTypeError, \
-    InvalidReturnTypeException, RecursionTooDeepError, WrongNumberOfArguments, UndefinedVariableError
+from src.errors.interpreter_errors import *
 from src.interpreter.executor import ProgramExecutor
 from src.lexer.lexer import DefaultLexer
 from src.lexer.source import Source
@@ -26,10 +25,10 @@ def execute_program(input_code: str) -> str:
 
 @pytest.mark.parametrize(
     "args, expected", [
-        ("8 to string", "8"),
-        ("1.5 to string", "1.5"),
+        ("8 ", "8"),
+        ("1.5", "1.5"),
         ("\"text\"", "text"),
-        ("true to string", "true"),
+        ("true", "true"),
         ("\"text1\", \"text2\"", "text1 text2"),
     ]
 )
@@ -92,7 +91,7 @@ def test_should_execute_builtin_input(value, expected):
 def test_cast_simple_types(casted_expression, expected):
     input_code = f"""
     void main(){{
-        print(({casted_expression}) to string);
+        print({casted_expression});
     }}
     """
     captured_output = execute_program(input_code)
@@ -111,7 +110,7 @@ def test_declare_variable(value, expected):
     input_code = f"""
     void main(){{
         x = {value};
-        print(x to string);
+        print(x);
     }}
     """
     captured_output = execute_program(input_code)
@@ -129,7 +128,7 @@ def test_execute_plus_expression(a, b, expected):
     input_code = f"""
     void main(){{
         x = {a} + {b};
-        print(x to string);
+        print(x);
     }}
     """
     captured_output = execute_program(input_code)
@@ -146,7 +145,7 @@ def test_execute_minus_expression(a, b, expected):
     input_code = f"""
     void main(){{
         x = {a} - {b};
-        print(x to string);
+        print(x);
     }}
     """
     captured_output = execute_program(input_code)
@@ -166,7 +165,7 @@ def test_execute_divide_expression(a, b, expected):
     input_code = f"""
     void main(){{
         x = {a} / {b};
-        print(x to string);
+        print(x);
     }}
     """
     captured_output = execute_program(input_code)
@@ -185,7 +184,7 @@ def test_execute_multiply_expression(a, b, expected):
     input_code = f"""
     void main(){{
         x = {a} * {b};
-        print(x to string);
+        print(x);
     }}
     """
     captured_output = execute_program(input_code)
@@ -204,7 +203,7 @@ def test_execute_modulo_expression(a, b, expected):
     input_code = f"""
     void main(){{
         x = {a} % {b};
-        print(x to string);
+        print(x);
     }}
     """
     captured_output = execute_program(input_code)
@@ -222,7 +221,7 @@ def test_should_raise_when_type_missmatch_in_binary_expression(a, b):
     input_code = f"""
     void main(){{
         x = {a} + {b};
-        print(x to string);
+        print(x);
     }}
     """
     with pytest.raises(NotMatchingTypesInBinaryExpression):
@@ -272,7 +271,7 @@ def test_should_raise_when_type_missmatch_in_binary_expression(a, b):
 def test_execute_relational_expressions(expression, expected):
     input_code = f"""
     void main(){{
-        print(({expression}) to string);
+        print({expression});
     }}
     """
     captured_output = execute_program(input_code)
@@ -294,7 +293,7 @@ def test_execute_relational_expressions(expression, expected):
 def test_execute_logical_expressions(expression, expected):
     input_code = f"""
     void main(){{
-        print(({expression}) to string);
+        print({expression});
     }}
     """
     captured_output = execute_program(input_code)
@@ -324,7 +323,7 @@ def test_execute_logical_expressions(expression, expected):
 def test_execute_negated_expressions(expression, expected):
     input_code = f"""
     void main(){{
-        print(({expression}) to string);
+        print({expression});
     }}
     """
     captured_output = execute_program(input_code)
@@ -341,7 +340,7 @@ def test_execute_negated_expressions(expression, expected):
 def test_execute_negated_expressions(expression, expected):
     input_code = f"""
     void main(){{
-        print(({expression}) to string);
+        print({expression});
     }}
     """
     captured_output = execute_program(input_code)
@@ -358,7 +357,7 @@ def test_assigment_should_change_value_of_variable(a, b, expected):
     void main(){{
         x = {a};
         x = {b};
-        print(x to string);
+        print(x);
     }}
     """
     captured_output = execute_program(input_code)
@@ -386,7 +385,7 @@ def test_variable_assignment_fails_with_wrong_type(a, b):
     void main(){{
         x = {a};
         x = {b};
-        print(x to string);
+        print(x);
     }}
     """
     with pytest.raises(WrongExpressionTypeError):
@@ -432,7 +431,7 @@ def test_execute_while_statement(value, threshold, expected):
         while(x > {threshold}){{
             x = x - 1;
         }}
-        print(x to string);
+        print(x);
     }}
     """
     captured_output = execute_program(input_code)
@@ -444,14 +443,14 @@ def test_while_statement_should_end_after_break():
     void main(){{
         x = 5;
         while(x > 0){{
-            print(x to string);
+            print(x);
             x = x - 1;
             if(x == 1){{
                 break;
                 print("break");
             }}
         }}
-        print(x to string);
+        print(x);
     }}
     """
     captured_output = execute_program(input_code)
@@ -463,14 +462,14 @@ def test_while_statement_should_skip_rest_of_statements_after_continue():
     void main(){{
         x = 5;
         while(x > 0){{
-            print(x to string);
+            print(x);
             x = x - 1;
             if(x == 1){{
                 continue;
                 print("break");
             }}
         }}
-        print(x to string);
+        print(x);
     }}
     """
     captured_output = execute_program(input_code)
@@ -496,10 +495,10 @@ def test_execute_function_call():
     }}
     void main(){{
         a = add(1, 2);
-        print(a to string);
-        print(func1(2.5) to string);
-        print(func2(true) to string);
-        print(func3("text") to string);
+        print(a);
+        print(func1(2.5));
+        print(func2(true));
+        print(func3("text"));
         print_a();
     }}
     """
@@ -514,7 +513,7 @@ def test_execute_function_call_should_reset_value_after_each_call():
     }}
     void main(){{
         func1(2.5);
-        print(func1(3.0) to string);
+        print(func1(3.0));
     }}
     """
     captured_output = execute_program(input_code)
@@ -528,7 +527,7 @@ def test_execute_function_call_should_end_executing_statements_after_return():
         print("func1");
     }}
     void main(){{
-        print(func1(3.0) to string);
+        print(func1(3.0));
     }}
     """
     captured_output = execute_program(input_code)
@@ -542,7 +541,7 @@ def test_execute_function_call_without_enough_parameters():
         print("func1");
     }}
     void main(){{
-        print(func1() to string);
+        print(func1());
     }}
     """
     with pytest.raises(WrongNumberOfArguments):
@@ -587,7 +586,7 @@ def test_recursion():
         return fibonacci(n-2)+fibonacci(n-1);
     }}
     void main(){{
-        print(fibonacci(15) to string);
+        print(fibonacci(15));
     }}
     """
     captured_output = execute_program(input_code)
@@ -787,3 +786,169 @@ def test_should_throw_exception_when_exception_class_is_not_matched():
     """
     captured_output = execute_program(input_code)
     assert captured_output == "\x1b[31mValueError at Line 9, Column 9: Text value=3\033[0m"
+
+
+def test_should_raise_exception_when_missing_main_function():
+    input_code = f"""
+    void func1(){{
+        x = 2;
+    }}
+    """
+    with pytest.raises(MissingMainFunctionDeclaration):
+        execute_program(input_code)
+
+
+def test_should_raise_exception_when_variable_already_declared():
+    input_code = f"""
+    int func1(int x, float x){{
+        x = 2;
+    }}
+    void main(){{
+        func1(1, 1.0);
+    }}
+    """
+    with pytest.raises(VariableAlreadyDeclaredError):
+        execute_program(input_code)
+
+
+def test_should_raise_exception_when_called_unknown_function():
+    input_code = f"""
+    void main(){{
+        func1();
+    }}
+    """
+    with pytest.raises(UnknownFunctionCallError):
+        execute_program(input_code)
+
+
+@pytest.mark.parametrize(
+    "expr", [
+        "true + true",
+        "true - true",
+        "true * true",
+        "true / true",
+        "true % true",
+        "\"text\" - \"text\"",
+        "\"text\" * \"text\"",
+        "\"text\" / \"text\"",
+        "\"text\" % \"text\"",
+        "1 and 1",
+        "1.0 and 1.0",
+        "\"text\" and \"text\"",
+        "1 or 1",
+        "1.0 or 1.0",
+        "\"text\" or \"text\"",
+    ]
+)
+def test_should_raise_when_wrong_expression_type_for_operations(expr):
+    input_code = f"""
+    void main(){{
+        a = {expr};
+    }}
+    """
+    with pytest.raises(WrongExpressionTypeError):
+        execute_program(input_code)
+
+
+@pytest.mark.parametrize(
+    "expr", [
+        "1/0",
+        "1.0/0.0"
+    ]
+)
+def test_should_raise_when_divide_by_zero(expr):
+    input_code = f"""
+    void main(){{
+        x = {expr};
+    }}
+    """
+    with pytest.raises(DivisionByZeroError):
+        execute_program(input_code)
+
+
+def test_should_raise_when_throw_undefined_exception():
+    input_code = f"""
+    void main(){{
+        throw RandomException();
+    }}
+    """
+    with pytest.raises(UndefinedExceptionError):
+        execute_program(input_code)
+
+@pytest.mark.parametrize(
+    "stmnt", [
+        "break",
+        "continue",
+    ]
+)
+def test_should_raise_when_loop_control_outside_loop(stmnt):
+    input_code = f"""
+    int func1(int x){{
+        {stmnt};
+        return x;
+    }}
+    void main(){{
+        func1(1);
+    }}
+    """
+    with pytest.raises(LoopControlOutsideLoopError):
+        execute_program(input_code)
+
+def test_should_raise_when_call_non_existent_attribute():
+    input_code = f"""
+    exception ValueError(int value) {{
+        message: string = "Text value=" + value to string;
+    }}
+    void func1(){{
+        throw ValueError(3);
+        print("text after throw");
+    }}
+    void main(){{
+        try{{
+            func1();
+            print("after func1");
+        }}catch(ValueError e){{
+            print(e.number);
+        }}
+    }}
+    """
+    with pytest.raises(UndefinedAttributeError):
+        execute_program(input_code)
+
+
+
+def test_should_raise_when_no_value_to_read():
+    input_code = f"""
+    void func1(){{
+        print("text after throw");
+    }}
+    void main(){{
+        x = func1();
+        print(x);
+    }}
+    """
+    with pytest.raises(NoLastResultError):
+        execute_program(input_code)
+
+
+def test_should_raise_when_attribute_already_declared():
+    input_code = f"""
+    exception ValueError(int value) {{
+        message: string = "Text value=" + value to string;
+        message: string = "Text";
+    }}
+    void func1(){{
+        throw ValueError(3);
+        print("text after throw");
+    }}
+    void main(){{
+        try{{
+            func1();
+            print("after func1");
+        }}catch(ValueError e){{
+            print(e.message);
+        }}
+    }}
+    """
+    with pytest.raises(AttributeAlreadyDeclaredError):
+        execute_program(input_code)

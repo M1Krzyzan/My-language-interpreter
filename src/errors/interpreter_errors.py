@@ -35,7 +35,7 @@ class VariableAlreadyDeclaredError(InterpreterError):
         super().__init__(message)
 
 
-class UnknownFunctionCall(InterpreterError):
+class UnknownFunctionCallError(InterpreterError):
     def __init__(self, function_name: str, position: Position):
         message = f'Undeclared function call "{function_name}" at {position}'
         super().__init__(message)
@@ -48,12 +48,6 @@ class WrongExpressionTypeError(InterpreterError):
         else:
             string = expected_types
         message = f'Wrong value type {value_type} expected {string} at {position}'
-        super().__init__(message)
-
-
-class WrongCastTypeError(InterpreterError):
-    def __init__(self, exp_type: Type, position: Position):
-        message = f'Unknown target type {exp_type} in cast expression at {position}'
         super().__init__(message)
 
 
@@ -76,14 +70,14 @@ class InvalidReturnTypeException(InterpreterError):
 
 
 class RecursionTooDeepError(InterpreterError):
-    def __init__(self):
-        message = f'Recursion limit reached'
+    def __init__(self, position: Position):
+        message = f'Recursion limit reached at {position}'
         super().__init__(message)
 
 
 class UndefinedExceptionError(InterpreterError):
-    def __init__(self, exception_name: str):
-        message = f'Undefined exception "{exception_name}"'
+    def __init__(self, exception_name: str, position: Position):
+        message = f'Undefined exception throw "{exception_name}" at {position}'
         super().__init__(message)
 
 
@@ -94,24 +88,24 @@ class LoopControlOutsideLoopError(InterpreterError):
 
 
 class UndefinedAttributeError(InterpreterError):
-    def __init__(self, attr_name: str, exception_id: str):
-        message = f'There is no attribute "{attr_name}" for {exception_id}'
+    def __init__(self, attr_name: str, exception_id: str, position: Position):
+        message = f'There is no attribute "{attr_name}" for {exception_id} called at {position}'
         super().__init__(message)
 
 
 class NoLastResultError(InterpreterError):
     def __init__(self):
-        message = f'There is no value to return"'
+        message = f'There is no value to read'
         super().__init__(message)
 
 
 class WrongNumberOfArguments(InterpreterError):
-    def __init__(self, name: str):
-        message = f'Wrong number of arguments in "{name}"'
+    def __init__(self, name: str, arg_num: int, param_num: int, position: Position):
+        message = f'Wrong number of arguments in call of "{name}", expected {arg_num}, got {param_num} at {position}'
         super().__init__(message)
 
 
 class AttributeAlreadyDeclaredError(InterpreterError):
-    def __init__(self, attribute_name: str, exception_id: str):
-        message = f'Attribute "{attribute_name}" for exception id "{exception_id}" already declared.'
+    def __init__(self, attribute_name: str, exception_id: str, position: Position):
+        message = f'Attribute "{attribute_name}" for exception id "{exception_id}" already declared at {position}'
         super().__init__(message)

@@ -154,6 +154,7 @@ class Parameter:
 
 @dataclass
 class CatchStatement(Statement):
+    position: Position
     exception: str
     name: str
     block: StatementBlock
