@@ -1,6 +1,5 @@
 from typing import Optional
 
-from src.errors.interpreter_errors import InterpreterError
 from src.interpreter.scope import Scope
 from src.interpreter.typed_value import TypedValue
 

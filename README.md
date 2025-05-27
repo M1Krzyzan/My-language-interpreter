@@ -29,7 +29,7 @@
 - Filtrowanie wyjątków przy pomocy instrukcji `try-catch`  
 - Możliwość rzucania wyjątków  
 - Wbudowana funkcja `print` przeznaczona do wypisywania tekstu na standardowe wyjście  
-- Wbudowana funkcja `input` przeznaczona do wczytywania tekstu ze standardowego wejścia  
+- Wbudowana funkcja `input` przeznaczona do wczytywania tekstu ze standardowego wejścia
 
 ### Wymagania niefunkcjonalne  
 - Leniwa tokenizacja  
@@ -303,12 +303,13 @@ Przykładem błędu leksykalnego jest:
 #### Parser
 Przykładem błędu parsera jest:
 - UnexpectedToken - błąd występujacy, gdy tokeny są w niepoprawnej kolejności względem przyjętej gramatyki
-- UnmatchedParentheses - występuje w przypadku braku zamknięcia `(` i `{`
-- MissingSemicolon - brak średnika na końcu wyrażenia
+- MissingExpression - występuje w przypadku braku wyrażenia np. po znaku = w przypisaniu wartości do zmiennej 
+- MissingCondition - brak warunku w instrukcji warunkowej
 #### Interpreter
 - UndefinedVariable - brak definicji zmiennej
 - IncompatibleTypes - błąd występujący w przypadku próby wykonania operacji na różnych typach np. `2*"text"`
 - DivisionByZero - występuje w przypadku dzielenia przez 0
+- RecursionTooDeepE - występuje, gdy mamy zbyt dużą ilość wywołań funkcji na stosie
 
 #### Przykładowe komunikaty o błędzie
 ```

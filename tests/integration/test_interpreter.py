@@ -311,6 +311,14 @@ def test_execute_logical_expressions(expression, expected):
         ("not (1<=2)", "false"),
         ("not (1<2)", "false"),
         ("not (1>2)", "true"),
+        ("!true", "false"),
+        ("!false", "true"),
+        ("!(1==2)", "true"),
+        ("!(1!=2)", "false"),
+        ("!(1>=2)", "true"),
+        ("!(1<=2)", "false"),
+        ("!(1<2)", "false"),
+        ("!(1>2)", "true"),
     ]
 )
 def test_execute_negated_expressions(expression, expected):
