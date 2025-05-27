@@ -6,58 +6,66 @@ class InterpreterError(Exception):
     def __init__(self, message: str):
         super().__init__(message)
         self.message = message
-        # self.position = position
 
     def __str__(self):
-        return f"\033[31mInterpreterError: {self.message} at"
+        return f"\033[31mInterpreterError: {self.message}\033[0m"
 
 
 class MissingMainFunctionDeclaration(InterpreterError):
-    def __init__(self, position: Position):
+    def __init__(self):
         message = "Missing main function declaration in program"
         super().__init__(message)
 
+
 class FailedValueAssigmentError(InterpreterError):
-    def __init__(self, name: str):
-        message = f'Failed to assign value to variable"{name}")'
+    def __init__(self, name: str, position: Position):
+        message = f'Failed to assign value to variable "{name}" at {position}'
         super().__init__(message)
 
-class UnableToGetVariable(InterpreterError):
-    def __init__(self, name: str):
-        message = f'Failed to acquire value of variable"{name}")'
+
+class UndefinedVariableError(InterpreterError):
+    def __init__(self, name: str, position: Position):
+        message = f'Undefined variable "{name}" at {position}'
         super().__init__(message)
 
-class FailedVariableDeclarationError(InterpreterError):
-    def __init__(self, name: str):
-        message = f'Failed to declare variable"{name}")'
+
+class VariableAlreadyDeclaredError(InterpreterError):
+    def __init__(self, name: str, position: Position):
+        message = f'Variable with name "{name}" already exists at {position})'
         super().__init__(message)
+
 
 class UnknownFunctionCall(InterpreterError):
-    def __init__(self, function_name: str):
-        message = f'Undeclared function call(name="{function_name}")'
-        super().__init__(message)
-
-class WrongExpressionType(InterpreterError):
-    def __init__(self, exp_type):
-        message = f'Unknown expression type {exp_type}")'
+    def __init__(self, function_name: str, position: Position):
+        message = f'Undeclared function call "{function_name}" at {position}'
         super().__init__(message)
 
 
-class WrongCastType(InterpreterError):
-    def __init__(self, exp_type: Type):
-        message = f'Unknown target type {exp_type}")'
+class WrongExpressionTypeError(InterpreterError):
+    def __init__(self, value_type: Type, expected_types: list[Type] | Type, position: Position):
+        if isinstance(expected_types, list):
+            string = " or ".join(str(v) for v in expected_types)
+        else:
+            string = expected_types
+        message = f'Wrong value type {value_type} expected {string} at {position}'
+        super().__init__(message)
+
+
+class WrongCastTypeError(InterpreterError):
+    def __init__(self, exp_type: Type, position: Position):
+        message = f'Unknown target type {exp_type} in cast expression at {position}'
         super().__init__(message)
 
 
 class DivisionByZeroError(InterpreterError):
-    def __init__(self):
-        message = f'Cant divide by zero")'
+    def __init__(self, position: Position):
+        message = f'Division by zero at {position}'
         super().__init__(message)
 
 
 class NotMatchingTypesInBinaryExpression(InterpreterError):
-    def __init__(self, left_type: Type, right_type: Type):
-        message = f'Not matching types in binary operation "{left_type}"!="{right_type}")'
+    def __init__(self, left_type: Type, right_type: Type, position: Position):
+        message = f'Not matching types in binary operation {left_type}!={right_type} at {position}'
         super().__init__(message)
 
 
@@ -101,6 +109,7 @@ class WrongNumberOfArguments(InterpreterError):
     def __init__(self, name: str):
         message = f'Wrong number of arguments in "{name}"'
         super().__init__(message)
+
 
 class AttributeAlreadyDeclaredError(InterpreterError):
     def __init__(self, attribute_name: str, exception_id: str):

@@ -1,6 +1,6 @@
 import io
 from operator import or_, and_, eq, ne, lt, le, gt, ge, add, mul, sub, mod
-from typing import Callable
+from typing import Callable, Any
 
 from src.ast.core_structures import Program, Function, CustomException
 from src.ast.expressions import *
@@ -33,13 +33,14 @@ COMPARISON_OPERATORS = {
 
 
 class ProgramExecutor(Visitor):
-    def __init__(self, recursion_limit=30):
+    def __init__(self, recursion_limit=30, number_precision=15):
+        self.recursion_limit = recursion_limit
+        self.number_precision = number_precision
         self.break_flag = False
         self.continue_flag = False
         self.return_flag = False
         self.exception_to_throw = None
         self.last_result = None
-        self.recursion_limit = recursion_limit
         self.functions = {}
         self.exceptions = builtin_exceptions
         self.context_stack = []
@@ -47,7 +48,7 @@ class ProgramExecutor(Visitor):
     def execute(self, program: Program):
         program.accept(self)
         if self.exception_to_throw:
-            print(f"\033[31m{self.exception_to_throw}")
+            print(f"\033[31m{self.exception_to_throw}\033[0m")
 
     def visit_program(self, program: Program):
         if program.functions.get("main") is None:
@@ -91,7 +92,7 @@ class ProgramExecutor(Visitor):
         condition_value_type = VALUE_TO_TYPE_MAP.get(type(condition_value))
 
         if condition_value_type != Type.BoolType:
-            raise WrongExpressionType(condition_value_type)
+            raise WrongExpressionTypeError(condition_value_type, Type.BoolType, if_statement.condition.position)
 
         if condition_value:
             if_statement.if_block.accept(self)
@@ -103,7 +104,7 @@ class ProgramExecutor(Visitor):
             elif_condition_value_type = VALUE_TO_TYPE_MAP.get(type(elif_condition_value))
 
             if elif_condition_value_type != Type.BoolType:
-                raise WrongExpressionType(condition_value_type)
+                raise WrongExpressionTypeError(condition_value_type, Type.BoolType, elif_condition.position)
 
             if elif_condition_value:
                 elif_block.accept(self)
@@ -149,7 +150,7 @@ class ProgramExecutor(Visitor):
         condition_value_type = VALUE_TO_TYPE_MAP.get(type(condition_value))
 
         if condition_value_type != Type.BoolType:
-            raise WrongExpressionType(condition_value_type)
+            raise WrongExpressionTypeError(condition_value_type, Type.BoolType, while_statement.condition.position)
 
         while condition_value:
             while_statement.block.accept(self)
@@ -182,12 +183,15 @@ class ProgramExecutor(Visitor):
         context = self.context_stack[-1]
         context.push_scope()
         for param, value in zip(exception_def.parameters, eval_arguments):
+
             value_type = VALUE_TO_TYPE_MAP.get(type(value))
             if value_type != param.type:
-                raise WrongExpressionType(value_type)
+                raise WrongExpressionTypeError(value_type, param.type, param.position)
+
             typed_value = TypedValue(value=value, type=param.type)
+
             if not context.declare_variable(param.name, typed_value):
-                raise FailedVariableDeclarationError(param.name)
+                raise VariableAlreadyDeclaredError(param.name, param.position)
 
         eval_attributes = {}
         for attr in exception_def.attributes:
@@ -205,7 +209,7 @@ class ProgramExecutor(Visitor):
         elif builtin_def := builtin_functions.get(function_name):
             self.visit_builtin_function_call(function_call, builtin_def)
         else:
-            raise UnknownFunctionCall(function_call.position, function_name)
+            raise UnknownFunctionCall(function_name, function_call.position)
 
     def visit_user_function_call(self, function_call: FunctionCall, function_def: Function):
         eval_arguments = []
@@ -225,7 +229,7 @@ class ProgramExecutor(Visitor):
         for param, value in zip(function_def.parameters, eval_arguments):
             typed_value = TypedValue(value=value, type=param.type)
             if not self.context_stack[-1].declare_variable(param.name, typed_value):
-                raise FailedVariableDeclarationError(param.name)
+                raise VariableAlreadyDeclaredError(param.name, param.position)
 
         try:
             function_def.statement_block.accept(self)
@@ -257,13 +261,15 @@ class ProgramExecutor(Visitor):
         context = self.context_stack[-1]
         if (declared_variable := context.get_variable(name)) is not None:
             if declared_variable.type != value_type:
-                raise WrongExpressionType(value_type)
+                raise WrongExpressionTypeError(value_type,
+                                               declared_variable.type,
+                                               assigment_statement.expression.position)
             if not context.assign_variable(name, value):
-                raise FailedValueAssigmentError(name)
+                raise FailedValueAssigmentError(name, assigment_statement.position)
         else:
             typed_value = TypedValue(value_type, value)
             if not context.declare_variable(name, typed_value):
-                raise FailedVariableDeclarationError(name)
+                raise VariableAlreadyDeclaredError(name, assigment_statement.position)
 
     def visit_or_expression(self, or_expression: OrExpression):
         self._evaluate_boolean_expression(or_expression.left, or_expression.right, or_)
@@ -273,23 +279,23 @@ class ProgramExecutor(Visitor):
 
     def visit_casted_expression(self, casted_expression: CastedExpression):
         casted_expression.expression.accept(self)
-        self._cast_expression(casted_expression.to_type)
+        self._cast_expression(casted_expression.to_type, casted_expression.position)
 
     def visit_negated_expression(self, negated_expression: NegatedExpression):
-        negated_expression.expression.accept(self)
-        value = self._consume_last_result()
-        value_type = VALUE_TO_TYPE_MAP.get(type(value))
-        if value_type != Type.BoolType:
-            raise WrongExpressionType(value_type)
-        self.last_result = not value
+        self._evaluate_unary_expression(
+            expression=negated_expression.expression,
+            expected_types=Type.BoolType,
+            position=negated_expression.position,
+            operator_fn=lambda v: not v
+        )
 
     def visit_unary_minus_expression(self, unary_minus_expression: UnaryMinusExpression):
-        unary_minus_expression.expression.accept(self)
-        value = self._consume_last_result()
-        value_type = VALUE_TO_TYPE_MAP.get(type(value))
-        if value_type != Type.IntType and value_type != Type.FloatType:
-            raise WrongExpressionType(value_type)
-        self.last_result = -value
+        self._evaluate_unary_expression(
+            expression=unary_minus_expression.expression,
+            expected_types=[Type.IntType, Type.FloatType],
+            position=unary_minus_expression.position,
+            operator_fn=lambda v: -v
+        )
 
     def visit_attribute_call(self, attribute_call: AttributeCall):
         context = self.context_stack[-1]
@@ -302,8 +308,10 @@ class ProgramExecutor(Visitor):
         self.last_result = attribute.value
 
     def visit_variable(self, variable: Variable):
-        if (typed_variable := self.context_stack[-1].get_variable(variable.name)) is None:
-            raise UnableToGetVariable(variable.name)
+        context = self.context_stack[-1]
+        if (typed_variable := context.get_variable(variable.name)) is None:
+            raise UndefinedVariableError(variable.name, variable.position)
+
         variable_value = typed_variable.value
         self.last_result = variable_value
 
@@ -324,15 +332,16 @@ class ProgramExecutor(Visitor):
             left_expr=multiply_expression.left,
             right_expr=multiply_expression.right,
             operator_func=mul,
-            allowed_types={Type.IntType, Type.FloatType}
+            allowed_types=[Type.IntType, Type.FloatType]
         )
 
     def visit_divide_expression(self, divide_expression: DivideExpression):
+        safe_divide_with_position = lambda x, y: self._safe_divide(x, y, divide_expression.position)
         self._evaluate_arithmetic_expression(
             left_expr=divide_expression.left,
             right_expr=divide_expression.right,
-            operator_func=self._safe_divide,
-            allowed_types={Type.IntType, Type.FloatType}
+            operator_func=safe_divide_with_position,
+            allowed_types=[Type.IntType, Type.FloatType]
         )
 
     def visit_modulo_expression(self, modulo_expression: ModuloExpression):
@@ -340,7 +349,7 @@ class ProgramExecutor(Visitor):
             left_expr=modulo_expression.left,
             right_expr=modulo_expression.right,
             operator_func=mod,
-            allowed_types={Type.IntType, Type.FloatType}
+            allowed_types=[Type.IntType, Type.FloatType]
         )
 
     def visit_plus_expression(self, plus_expression: PlusExpression):
@@ -348,7 +357,7 @@ class ProgramExecutor(Visitor):
             left_expr=plus_expression.left,
             right_expr=plus_expression.right,
             operator_func=add,
-            allowed_types={Type.IntType, Type.FloatType, Type.StringType}
+            allowed_types=[Type.IntType, Type.FloatType, Type.StringType]
         )
 
     def visit_minus_expression(self, minus_expression: MinusExpression):
@@ -356,7 +365,7 @@ class ProgramExecutor(Visitor):
             left_expr=minus_expression.left,
             right_expr=minus_expression.right,
             operator_func=sub,
-            allowed_types={Type.IntType, Type.FloatType},
+            allowed_types=[Type.IntType, Type.FloatType]
         )
 
     def visit_equals_expression(self, expression: EqualsExpression):
@@ -377,12 +386,24 @@ class ProgramExecutor(Visitor):
     def visit_greater_than_or_equals_expression(self, expression: GreaterThanOrEqualsExpression):
         self._visit_binary_comparison(expression, COMPARISON_OPERATORS['greater_than_or_equals'])
 
+    def _evaluate_unary_expression(
+            self,
+            expression: Expression,
+            expected_types: list[Type] | Type,
+            position: Position,
+            operator_fn: Callable
+    ):
+        expression.accept(self)
+        value = self._consume_last_result()
+        self._check_type(value, expected_types, position)
+        self.last_result = operator_fn(value)
+
     def _evaluate_boolean_expression(self, left_expr: Expression, right_expr: Expression, operator_func: Callable):
         left_expr.accept(self)
-        left = self._assert_bool(self._consume_last_result())
+        left = self._assert_bool(self._consume_last_result(), left_expr.position)
 
         right_expr.accept(self)
-        right = self._assert_bool(self._consume_last_result())
+        right = self._assert_bool(self._consume_last_result(), right_expr.position)
 
         self.last_result = operator_func(left, right)
 
@@ -400,13 +421,6 @@ class ProgramExecutor(Visitor):
 
         self.last_result = op_func(left, right)
 
-    @staticmethod
-    def _assert_bool(value):
-        value_type = VALUE_TO_TYPE_MAP.get(type(value))
-        if value_type != Type.BoolType:
-            raise WrongExpressionType(value_type)
-        return value
-
     def visit_break_statement(self, break_statement: BreakStatement):
         self.break_flag = True
 
@@ -421,13 +435,33 @@ class ProgramExecutor(Visitor):
         return value
 
     @staticmethod
-    def _safe_divide(x, y):
+    def _assert_bool(value: str | bool | float | int, position: Position) -> bool:
+        value_type = VALUE_TO_TYPE_MAP.get(type(value))
+        if value_type != Type.BoolType:
+            raise WrongExpressionTypeError(value_type, Type.BoolType, position)
+        return value
+
+    @staticmethod
+    def _check_type(value: Any,
+                    expected_types: list[Type] | Type,
+                    position: Position):
+        value_type = VALUE_TO_TYPE_MAP.get(type(value))
+        if isinstance(expected_types, list):
+            if value_type not in expected_types:
+                raise WrongExpressionTypeError(value_type, expected_types, position)
+        else:
+            if value_type != expected_types:
+                raise WrongExpressionTypeError(value_type, expected_types, position)
+        return value
+
+    @staticmethod
+    def _safe_divide(x: int|float, y: int|float, position: Position) -> int|float:
         if y == 0:
-            raise DivisionByZeroError()
+            raise DivisionByZeroError(position)
         x_type = VALUE_TO_TYPE_MAP.get(type(x))
         return x // y if x_type == Type.IntType else x / y
 
-    def _cast_expression(self, to_type: Type):
+    def _cast_expression(self, to_type: Type, position: Position):
         value = self._consume_last_result()
         origin_type = type(value)
 
@@ -440,17 +474,23 @@ class ProgramExecutor(Visitor):
 
         cast_func = cast_map.get(origin_type)
         if not cast_func:
-            raise WrongExpressionType(origin_type)
+            raise WrongExpressionTypeError(origin_type,
+                                           [
+                                               Type.IntType,
+                                               Type.FloatType,
+                                               Type.StringType,
+                                               Type.BoolType],
+                                           position)
 
-        self.last_result = cast_func(to_type, value)
+        self.last_result = cast_func(to_type, value, position)
 
     @staticmethod
     def _check_numeric_type(value_type: Type):
         if value_type not in (Type.IntType, Type.FloatType):
-            raise WrongExpressionType(value_type)
+            raise WrongExpressionTypeError(value_type)
 
     @staticmethod
-    def _cast_int(to_type: Type, value: int):
+    def _cast_int(to_type: Type, value: int, position: Position):
         cast_map = {
             Type.IntType: lambda v: v,
             Type.FloatType: float,
@@ -458,11 +498,11 @@ class ProgramExecutor(Visitor):
             Type.StringType: str,
         }
         if to_type not in cast_map:
-            raise WrongCastType(to_type)
+            raise WrongCastTypeError(to_type, position)
         return cast_map[to_type](value)
 
     @staticmethod
-    def _cast_float(to_type: Type, value: float):
+    def _cast_float(to_type: Type, value: float, position: Position):
         cast_map = {
             Type.IntType: int,
             Type.FloatType: lambda v: v,
@@ -470,11 +510,11 @@ class ProgramExecutor(Visitor):
             Type.StringType: str,
         }
         if to_type not in cast_map:
-            raise WrongCastType(to_type)
+            raise WrongCastTypeError(to_type, position)
         return cast_map[to_type](value)
 
     @staticmethod
-    def _cast_boolean(to_type: Type, value: bool):
+    def _cast_boolean(to_type: Type, value: bool, position: Position):
         cast_map = {
             Type.IntType: lambda v: 1 if v else 0,
             Type.FloatType: lambda v: 1.0 if v else 0.0,
@@ -482,11 +522,11 @@ class ProgramExecutor(Visitor):
             Type.StringType: lambda v: "true" if v else "false",
         }
         if to_type not in cast_map:
-            raise WrongCastType(to_type)
+            raise WrongCastTypeError(to_type, position)
         return cast_map[to_type](value)
 
     @staticmethod
-    def _cast_string(to_type: Type, value: str):
+    def _cast_string(to_type: Type, value: str, position: Position):
         cast_map = {
             Type.IntType: int,
             Type.FloatType: float,
@@ -494,7 +534,7 @@ class ProgramExecutor(Visitor):
             Type.StringType: lambda v: v,
         }
         if to_type not in cast_map:
-            raise WrongCastType(to_type)
+            raise WrongCastTypeError(to_type, position)
         return cast_map[to_type](value)
 
     def _evaluate_arithmetic_expression(
@@ -502,27 +542,27 @@ class ProgramExecutor(Visitor):
             left_expr: Expression,
             right_expr: Expression,
             operator_func: Callable,
-            allowed_types: set[Type],
+            allowed_types: list[Type],
     ):
         left_expr.accept(self)
         left = self._consume_last_result()
         left_type = VALUE_TO_TYPE_MAP.get(type(left))
         if left_type not in allowed_types:
-            raise WrongExpressionType(left_type)
+            raise WrongExpressionTypeError(left_type, allowed_types, left_expr.position)
 
         right_expr.accept(self)
         right = self._consume_last_result()
         right_type = VALUE_TO_TYPE_MAP.get(type(right))
         if right_type not in allowed_types:
-            raise WrongExpressionType(right_type)
+            raise WrongExpressionTypeError(right_type, allowed_types, right_expr.position)
 
         if left_type != right_type:
-            raise NotMatchingTypesInBinaryExpression(left_type, right_type)
+            raise NotMatchingTypesInBinaryExpression(left_type, right_type, left_expr.position)
 
         result = operator_func(left, right)
         result_type = VALUE_TO_TYPE_MAP.get(type(result))
         if result_type != Type.BoolType and result_type != Type.StringType:
-            result = round(result, 15)
+            result = round(result, self.number_precision)
 
         self.last_result = result
 

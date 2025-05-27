@@ -9,7 +9,7 @@ class ParserError(Exception):
         self.position = position
 
     def __str__(self):
-        return f"\033[31mParserError: {self.message} at {self.position}"
+        return f"\033[31mParserError: {self.message} at {self.position}\033[0m"
 
 
 class UnexpectedToken(ParserError):

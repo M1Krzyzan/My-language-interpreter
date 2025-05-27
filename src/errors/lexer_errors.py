@@ -8,7 +8,7 @@ class LexerError(Exception):
         self.position = position
 
     def __str__(self):
-        return f"\033[31mLexerError: {self.message} at {self.position}"
+        return f"\033[31mLexerError: {self.message} at {self.position}\033[0m"
 
 
 class OverFlowError(LexerError):

@@ -4,8 +4,8 @@ from unittest.mock import patch
 
 import pytest
 
-from src.errors.interpreter_errors import NotMatchingTypesInBinaryExpression, WrongExpressionType, \
-    InvalidReturnTypeException, RecursionTooDeepError, WrongNumberOfArguments
+from src.errors.interpreter_errors import NotMatchingTypesInBinaryExpression, WrongExpressionTypeError, \
+    InvalidReturnTypeException, RecursionTooDeepError, WrongNumberOfArguments, UndefinedVariableError
 from src.interpreter.executor import ProgramExecutor
 from src.lexer.lexer import DefaultLexer
 from src.lexer.source import Source
@@ -389,7 +389,7 @@ def test_variable_assignment_fails_with_wrong_type(a, b):
         print(x to string);
     }}
     """
-    with pytest.raises(WrongExpressionType):
+    with pytest.raises(WrongExpressionTypeError):
         execute_program(input_code)
 
 
@@ -636,6 +636,35 @@ def test_should_correctly_deduce_variable_scope():
     assert captured_output == "5\n5\n3\n2\n2\n5"
 
 
+def test_should_throw_exception_when_variable_declared_in_inner_scope():
+    input_code = f"""
+    void func1(int x){{
+        print(x);
+        if(x > 0){{
+            x = 3;
+            print(x);
+            if(x > 0){{
+                x = 2;
+                y = 2;
+            }}
+            print(y);
+        }}
+        print(x);
+
+    }}
+    void main(){{
+        x = 5;
+        print(x);
+        func1(5);
+        print(x);
+    }}
+    """
+    with pytest.raises(UndefinedVariableError) as exception_info:
+        execute_program(input_code)
+
+    assert exception_info.value.message == 'Undefined variable "y" at Line 11, Column 19'
+
+
 def test_execute_throw_custom_exception():
     input_code = f"""
     exception ValueError(int value) {{
@@ -646,7 +675,7 @@ def test_execute_throw_custom_exception():
     }}
     """
     captured_output = execute_program(input_code)
-    assert captured_output == "\x1b[31mValueError at Line 6, Column 9: Text value=3"
+    assert captured_output == "\x1b[31mValueError at Line 6, Column 9: Text value=3\033[0m"
 
 
 def test_execute_throw_custom_exception_from_within_function():
@@ -664,7 +693,7 @@ def test_execute_throw_custom_exception_from_within_function():
     }}
     """
     captured_output = execute_program(input_code)
-    assert captured_output == "\x1b[31mValueError at Line 6, Column 9: Text value=3"
+    assert captured_output == "\x1b[31mValueError at Line 6, Column 9: Text value=3\033[0m"
 
 
 def test_execute_try_catch_statement():
@@ -757,4 +786,4 @@ def test_should_throw_exception_when_exception_class_is_not_matched():
     }}
     """
     captured_output = execute_program(input_code)
-    assert captured_output == "\x1b[31mValueError at Line 9, Column 9: Text value=3"
+    assert captured_output == "\x1b[31mValueError at Line 9, Column 9: Text value=3\033[0m"

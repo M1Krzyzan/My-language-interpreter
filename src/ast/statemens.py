@@ -127,6 +127,7 @@ class ReturnStatement(Statement):
 
 @dataclass
 class Attribute:
+    position: Position
     name: str
     type: Type
     expression: Expression
@@ -142,6 +143,7 @@ class Attribute:
 
 @dataclass
 class Parameter:
+    position: Position
     name: str
     type: Type
 

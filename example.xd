@@ -1,5 +1,6 @@
 exception ValueError(int value) {
-    message: string = "Wrong " + value to string + " - should be higher than 0: ";
+    message: string = "Wrong value="+value to string +" - should be higher than 0";
+    value: int = value;
 }
 
 $
@@ -12,11 +13,14 @@ bool is_even(int number){
 }
 
 void print_even_if_not_divisible_by_5(int number){
+    a = 5;
     while (number > 0) {
         # comment
         if (number % 5 == 0) {
-            break;
+            number = number - 1;
+            continue;
         }elif (is_even(number)) {
+            number = number - 1;
             continue;
         }else{
             print("x: ", number);
@@ -26,12 +30,15 @@ void print_even_if_not_divisible_by_5(int number){
 }
 void main(){
     try{
+        print("Enter value: ");
+        a = 3;
+        a = "string";
         x = input() to int;
         if (x <= 0){
             throw ValueError(x);
         }
         print_even_if_not_divisible_by_5(x);
     }catch(BaseException e){
-        print("Error: ", e.message, "\\n \t Value=", e.value, e.line, "\\n");
+        print("Error: ", e.message, "\\n \\t Value=", e.value, e.position, "\\n");
     }
 }

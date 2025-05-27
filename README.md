@@ -53,6 +53,13 @@
 |     bool     |    float     | wartość `true` zamieniana jest na `1.0`, a `false` na `0.0`                                            |
 |     bool     |    string    | wartość logiczna jest zamieniana na ciąg znaków: `true` na `"true"`, a `false` na `"false"`            |
 
+### Obsługiwane znaki specjalne w łańcuchach znaków
+| Sekwencja Escape | Znak Reprezentowany | Opis                     |
+|------------------|---------------------|--------------------------|
+| `\\`             | `\`                 | Odwrócony ukośnik        |
+| `\t`             | tabulator           | Znak tabulacji           |
+| `\n`             | nowa linia          | Przejście do nowej linii |
+| `\"`             | `"`                 | Cudzysłów                |
 ### Przykłady kodu
 ##### Deklaracje zmiennych i operacje na nich
 ```
@@ -293,9 +300,58 @@ letter = "a".."z" | "A".."Z";
 
 string_literal = "\"".."\"";
 ```
-
+### Lista obsługiwanych tokenów
+| Token                          | Typ         | Reprezentacja (jeśli istnieje) |
+|--------------------------------|-------------|--------------------------------|
+| IF_KEYWORD                     | Keyword     | `if`                           |
+| ELIF_KEYWORD                   | Keyword     | `elif`                         |
+| ELSE_KEYWORD                   | Keyword     | `else`                         |
+| WHILE_KEYWORD                  | Keyword     | `while`                        |
+| RETURN_KEYWORD                 | Keyword     | `return`                       |
+| BREAK_KEYWORD                  | Keyword     | `break`                        |
+| CONTINUE_KEYWORD               | Keyword     | `continue`                     |
+| TO_KEYWORD                     | Keyword     | `to`                           |
+| VOID_KEYWORD                   | Keyword     | `void`                         |
+| INT_KEYWORD                    | Keyword     | `int`                          |
+| FLOAT_KEYWORD                  | Keyword     | `float`                        |
+| STRING_KEYWORD                 | Keyword     | `string`                       |
+| BOOL_KEYWORD                   | Keyword     | `bool`                         |
+| EXCEPTION_KEYWORD              | Keyword     | `exception`                    |
+| CATCH_KEYWORD                  | Keyword     | `catch`                        |
+| TRY_KEYWORD                    | Keyword     | `try`                          |
+| THROW_KEYWORD                  | Keyword     | `throw`                        |
+| OR_OPERATOR                    | Operator    | `or`                           |
+| AND_OPERATOR                   | Operator    | `and`                          |
+| NEGATION_OPERATOR              | Operator    | `not`, `!`                     |
+| BOOLEAN_LITERAL                | Literal     | `true`, `false`                |
+| LEFT_ROUND_BRACKET             | Symbol      | `(`                            |
+| RIGHT_ROUND_BRACKET            | Symbol      | `)`                            |
+| LEFT_CURLY_BRACKET             | Symbol      | `{`                            |
+| RIGHT_CURLY_BRACKET            | Symbol      | `}`                            |
+| DOT                            | Symbol      | `.`                            |
+| COMMA                          | Symbol      | `,`                            |
+| COLON                          | Symbol      | `:`                            |
+| SEMICOLON                      | Symbol      | `;`                            |
+| PLUS_OPERATOR                  | Operator    | `+`                            |
+| MINUS_OPERATOR                 | Operator    | `-`                            |
+| MULTIPLICATION_OPERATOR        | Operator    | `*`                            |
+| DIVISION_OPERATOR              | Operator    | `/`                            |
+| MODULO_OPERATOR                | Operator    | `%`                            |
+| LESS_THAN_OPERATOR             | Operator    | `<`                            |
+| LESS_THAN_OR_EQUAL_OPERATOR    | Operator    | `<=`                           |
+| GREATER_THAN_OPERATOR          | Operator    | `>`                            |
+| GREATER_THAN_OR_EQUAL_OPERATOR | Operator    | `>=`                           |
+| EQUAL_OPERATOR                 | Operator    | `==`                           |
+| NOT_EQUAL_OPERATOR             | Operator    | `!=`                           |
+| ASSIGNMENT                     | Operator    | `=`                            |
+| IDENTIFIER                     | Identifier  | litery, cyfry i _              |
+| STRING_LITERAL                 | Literal     | `"tekst"` (przykład)           |
+| INT_LITERAL                    | Literal     | `123` (przykład)               |
+| FLOAT_LITERAL                  | Literal     | `3.14` (przykład)              |
+| COMMENT                        | Symbol/Meta | `$`, `#`                       |
+| ETX                            | Specjalny   | `\x03` (03 w ASCII)            |
 ### Obsługa błędów
-W przypadku napotkania błędu podczas pracy lexera/parsera/interpretera rzucany jest odpowiedni wyjątek.
+W przypadku napotkania błędu podczas pracy lexera/parsera/interpretera rzucany jest odpowiedni wyjątek oraz dany moduł kończy swoją pracę.
 #### Lekser
 Przykładem błędu leksykalnego jest:
 - UnknownToken - token jest nierozpozwnawany np. $
@@ -311,12 +367,12 @@ Przykładem błędu parsera jest:
 - DivisionByZero - występuje w przypadku dzielenia przez 0
 - RecursionTooDeepE - występuje, gdy mamy zbyt dużą ilość wywołań funkcji na stosie
 
-#### Przykładowe komunikaty o błędzie
+#### Komunikaty o błędzie
 ```
-InvalidCharacter at line 5, column 34;
+<ModuleName>: <message> at line <numer linii>, column <numer kolumny> 
 ```
 ```
-UnexpectedToken at line 8, column 22;
+ParserError: Unexpected token - expected LEFT_ROUND_BRACKET got INT_KEYWORD at line 5, column 34
 ```
 
 ### Struktura projektu  
@@ -331,16 +387,15 @@ Analizator składniowy ma za zadanie sprawdzić, czy sekwencja tokenów jest zgo
 Wykonuje kod zgodnie z regułami języka programowania. Interpretuje i wykonuje instrukcje jedna po drugiej.  
 
 #### Sposób komunikacji pomiędzy elementami  
-Interpreter tworzy instancję parsera i za pomocą odpowiedniej metody pobiera od niego drzewo AST wygenerowane przez parser. Parser tworzy instancję lexera i wywołuje jego metodę w celu otrzymania kolejnego tokena, na podstawie którego na bieżąco generuje drzewo AST. Każdy element bezpośrednio komunikuje się z Error Managerem, przekazując mu błędy do obsługi.  
+Interpreter tworzy instancję parsera i za pomocą odpowiedniej metody pobiera od niego drzewo AST wygenerowane przez parser. Parser tworzy instancję lexera i wywołuje jego metodę w celu otrzymania kolejnego tokena, na podstawie którego na bieżąco generuje drzewo AST.
 
 ### Testowanie  
 Każdy z modułów jest testowany oddzielnie przy pomocy biblioteki `pytest`. Testy są podzielone na dwa typy:  
 - **Testy jednostkowe** – dotyczą poszczególnych funkcji,  
 - **Testy integracyjne** – sprawdzają połączenia między elementami.  
-
+Weryfikowane są nie tylko przypadki pozytywne wykonania, ale również te negatywne, w których rzucony jest wyjątek.
 ### Sposób uruchomienia  
-Interpreter będzie uruchamiany z poziomu linii poleceń, przy czym należy podać opcję oznaczającą typ źródła kodu oraz jego ścieżkę, np.:  
-
+Interpreter uruchamiany jest z poziomu linii poleceń, przy czym należy podać ścieżkę do pliku źródłowego, np.:
 ```bash
-python interpreter.py -f ./source.xD
+python -m src.interpreter.interpreter ./source.xD
 ```

@@ -1214,12 +1214,14 @@ def test_parse_exception():
 
     assert exception.name == "CustomException"
     assert len(exception.parameters) == 1
-    assert exception.parameters == [Parameter(type=Type.IntType, name="x")]
+    assert exception.parameters == [Parameter(position=Position(1,1),type=Type.IntType, name="x")]
     assert len(exception.attributes) == 2
-    assert (exception.attributes[0] == Attribute(type=Type.IntType,
+    assert (exception.attributes[0] == Attribute(position=Position(1,1),
+                                                 type=Type.IntType,
                                                  name="number",
                                                  expression=IntLiteral(Position(1, 1), 5)))
-    assert (exception.attributes[1] == Attribute(type=Type.BoolType,
+    assert (exception.attributes[1] == Attribute(position=Position(1,1),
+                                                 type=Type.BoolType,
                                                  name="is_even",
                                                  expression=BoolLiteral(Position(1, 1), False)))
 

@@ -137,11 +137,12 @@ class Parser:
     def _parse_parameter(self) -> Optional[Parameter]:
         if (type := SIMPLE_TYPE_MAP.get(self.current_token.type)) is None:
             return None
+        position = self.current_token.position
         self._consume_token()
 
         name = self._consume_identifier()
 
-        return Parameter(name, type)
+        return Parameter(position, name, type)
 
     # statement_block = "{", {statement}, "}";
     def _parse_statement_block(self) -> Optional[StatementBlock]:
@@ -404,6 +405,7 @@ class Parser:
             return None
 
         name = self.current_token.value
+        position = self.current_token.position
         self._consume_token()
 
         self._consume(TokenType.COLON)
@@ -419,7 +421,7 @@ class Parser:
 
         self._consume(TokenType.SEMICOLON)
 
-        return Attribute(name, type, expression)
+        return Attribute(position, name, type, expression)
 
     # expression = and_expression, {or_operator, and_expression};
     def _parse_expression(self) -> Optional[Expression]:
