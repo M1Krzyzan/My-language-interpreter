@@ -1,35 +1,12 @@
 import io
-import operator
-from typing import List, Callable
+from operator import or_, and_, eq, ne, lt, le, gt, ge, add, mul, sub, mod
+from typing import Callable
 
 from src.ast.core_structures import Program, Function, CustomException
-from src.ast.expressions import (
-    GreaterThanExpression,
-    GreaterThanOrEqualsExpression,
-    LessThanOrEqualsExpression,
-    LessThanExpression,
-    NotEqualsExpression,
-    EqualsExpression,
-    MinusExpression,
-    PlusExpression,
-    ModuloExpression,
-    DivideExpression,
-    MultiplyExpression,
-    IntLiteral,
-    StringLiteral,
-    FloatLiteral,
-    BoolLiteral,
-    Variable,
-    AttributeCall, UnaryMinusExpression, NegatedExpression, CastedExpression, AndExpression, OrExpression
-)
-from src.ast.position import Position
-from src.ast.statemens import ContinueStatement, BreakStatement, AssignmentStatement, CatchStatement, \
-    TryCatchStatement, ReturnStatement, IfStatement, Attribute, StatementBlock, FunctionCall, WhileStatement, \
-    ThrowStatement
-from src.ast.types import Type
+from src.ast.expressions import *
+from src.ast.statemens import *
 from src.ast.visitor import Visitor
-from src.errors.interpreter_errors import MissingMainFunctionDeclaration, UnknownFunctionCall, InterpreterError, \
-    WrongExpressionType, WrongCastType, DivisionByZeroError, NotMatchingTypesInBinaryExpression
+from src.errors.interpreter_errors import *
 from src.interpreter.builtins import builtin_functions, builtin_exceptions
 from src.interpreter.context import FunctionContext
 from src.interpreter.typed_value import TypedValue
@@ -37,6 +14,7 @@ from src.lexer.lexer import DefaultLexer
 from src.lexer.source import Source
 from src.parser.parser import Parser
 from src.interpreter.runtime_exception import RuntimeUserException
+
 VALUE_TO_TYPE_MAP = {
     int: Type.IntType,
     float: Type.FloatType,
@@ -45,29 +23,27 @@ VALUE_TO_TYPE_MAP = {
 }
 
 COMPARISON_OPERATORS = {
-    'equals': operator.eq,
-    'not_equals': operator.ne,
-    'less_than': operator.lt,
-    'less_than_or_equals': operator.le,
-    'greater_than': operator.gt,
-    'greater_than_or_equals': operator.ge,
+    'equals': eq,
+    'not_equals': ne,
+    'less_than': lt,
+    'less_than_or_equals': le,
+    'greater_than': gt,
+    'greater_than_or_equals': ge,
 }
 
 
 class ProgramExecutor(Visitor):
-    context_stack: List[FunctionContext]
-
     def __init__(self, recursion_limit=30):
-        self.exception_to_throw = None
         self.break_flag = False
         self.continue_flag = False
         self.return_flag = False
+        self.exception_to_throw = None
         self.last_result = None
+        self.recursion_limit = recursion_limit
         self.functions = {}
         self.exceptions = builtin_exceptions
-        self.recursion_limit = recursion_limit
         self.context_stack = []
-
+        
     def execute(self, program: Program):
         program.accept(self)
         if self.exception_to_throw:
@@ -98,13 +74,16 @@ class ProgramExecutor(Visitor):
         for statement in statement_block.statements:
             statement.accept(self)
 
-            if (self.break_flag or self.continue_flag or
-                    self.return_flag or self.exception_to_throw):
+            if self.break_flag or self.continue_flag or self.exception_to_throw:
+                self.context_stack[-1].pop_scope()
+                return
+            if self.return_flag:
+                self.context_stack[-1].pop_scope()
                 return
         self.context_stack[-1].pop_scope()
 
     def visit_attribute(self, attribute: Attribute):
-            attribute.expression.accept(self)
+        attribute.expression.accept(self)
 
     def visit_if_statement(self, if_statement: IfStatement):
         if_statement.condition.accept(self)
@@ -152,6 +131,7 @@ class ProgramExecutor(Visitor):
     def visit_catch_statement(self, catch_statement: CatchStatement):
         catch = catch_statement
         exception = self.exception_to_throw
+
         if catch.exception == exception.definition.name or catch.exception == "BasicException":
             self.context_stack[-1].push_scope()
             for attr_name, value in exception.attributes.items():
@@ -188,12 +168,15 @@ class ProgramExecutor(Visitor):
 
     def visit_throw_statement(self, throw_statement: ThrowStatement):
         if (exception_def := self.exceptions.get(throw_statement.name)) is None:
-            raise InterpreterError("place holder")
+            raise UndefinedExceptionError(throw_statement.name)
 
         eval_arguments = []
         for argument in throw_statement.args:
             argument.accept(self)
             eval_arguments.append(self._consume_last_result())
+
+        if len(eval_arguments) != len(exception_def.parameters):
+            raise UndefinedExceptionError(throw_statement.name)
 
         context = self.context_stack[-1]
         context.push_scope()
@@ -210,7 +193,8 @@ class ProgramExecutor(Visitor):
             eval_attributes[attr.name] = self._consume_last_result()
 
         context.pop_scope()
-        self.exception_to_throw = RuntimeUserException(exception_def, eval_attributes, throw_statement.position)
+        eval_attributes["position"] = throw_statement.position
+        self.exception_to_throw = RuntimeUserException(exception_def, eval_attributes)
 
     def visit_function_call(self, function_call: FunctionCall):
         function_name = function_call.name
@@ -228,7 +212,10 @@ class ProgramExecutor(Visitor):
             eval_arguments.append(self._consume_last_result())
 
         if len(self.context_stack) >= self.recursion_limit:
-            raise InterpreterError("recursion limit reached")
+            raise RecursionTooDeepError()
+
+        if len(eval_arguments) != len(function_def.parameters):
+            raise WRongNumberOfArguments(function_call.name)
 
         call_context = FunctionContext(function_call.name)
         self.context_stack.append(call_context)
@@ -240,7 +227,10 @@ class ProgramExecutor(Visitor):
         try:
             function_def.statement_block.accept(self)
             if self.break_flag or self.continue_flag:
-                raise InterpreterError("m")
+                raise LoopControlOutsideLoopError("break" if self.break_flag else "continue")
+            if self.return_flag:
+                if (return_type := VALUE_TO_TYPE_MAP.get(type(self.last_result))) != function_def.return_type:
+                    raise InvalidReturnTypeException(return_type, function_def.return_type)
         finally:
             self.context_stack.pop()
             self.return_flag = False
@@ -250,8 +240,10 @@ class ProgramExecutor(Visitor):
         for argument in function_call.arguments:
             argument.accept(self)
             eval_arguments.append(self.last_result)
-
-        builtin_function(eval_arguments)
+        if function_call.name == "input":
+            self.last_result = builtin_function()
+        else:
+            builtin_function(*eval_arguments)
 
     def visit_assignment_statement(self, assigment_statement: AssignmentStatement):
         assigment_statement.expression.accept(self)
@@ -269,28 +261,10 @@ class ProgramExecutor(Visitor):
             context.declare_variable(name, typed_value)
 
     def visit_or_expression(self, or_expression: OrExpression):
-        or_expression.left.accept(self)
-        left = self._consume_last_result()
-
-        or_expression.right.accept(self)
-        right = self._consume_last_result()
-
-        self.last_result = left or right
+        self._evaluate_boolean_expression(or_expression.left, or_expression.right, or_)
 
     def visit_and_expression(self, and_expression: AndExpression):
-        and_expression.left.accept(self)
-        left = self._consume_last_result()
-        left_type = VALUE_TO_TYPE_MAP.get(type(left))
-        if left_type != Type.BoolType:
-            raise WrongExpressionType(left_type)
-
-        and_expression.right.accept(self)
-        right = self._consume_last_result()
-        right_type = VALUE_TO_TYPE_MAP.get(type(right))
-        if right_type != Type.BoolType:
-            raise WrongExpressionType(right_type)
-
-        self.last_result = left and right
+        self._evaluate_boolean_expression(and_expression.left, and_expression.right, and_)
 
     def visit_casted_expression(self, casted_expression: CastedExpression):
         casted_expression.expression.accept(self)
@@ -315,7 +289,7 @@ class ProgramExecutor(Visitor):
     def visit_attribute_call(self, attribute_call: AttributeCall):
         attribute = self.context_stack[-1].get_attribute(attribute_call.var_name, attribute_call.attr_name)
         if attribute is None:
-            raise InterpreterError("place holder")
+            raise UndefinedAttributeError("place holder")
         self.last_result = attribute.value
 
     def visit_variable(self, variable: Variable):
@@ -336,109 +310,44 @@ class ProgramExecutor(Visitor):
         self.last_result = int_literal.value
 
     def visit_multiply_expression(self, multiply_expression: MultiplyExpression):
-        multiply_expression.left.accept(self)
-        left = self._consume_last_result()
-
-        left_type = VALUE_TO_TYPE_MAP.get(type(left))
-        if left_type != Type.FloatType and left_type != Type.IntType:
-            raise WrongExpressionType(left_type)
-
-        multiply_expression.right.accept(self)
-        right = self._consume_last_result()
-
-        right_type = VALUE_TO_TYPE_MAP.get(type(right))
-        if right_type != Type.FloatType and right_type != Type.IntType:
-            raise WrongExpressionType(right_type)
-
-        if left_type != right_type:
-            raise NotMatchingTypesInBinaryExpression(left_type, right_type)
-        self.last_result = left * right
+        self._evaluate_arithmetic_expression(
+            left_expr=multiply_expression.left,
+            right_expr=multiply_expression.right,
+            operator_func=mul,
+            allowed_types={Type.IntType, Type.FloatType}
+        )
 
     def visit_divide_expression(self, divide_expression: DivideExpression):
-        divide_expression.left.accept(self)
-        left = self._consume_last_result()
-
-        left_type = VALUE_TO_TYPE_MAP.get(type(left))
-        if left_type != Type.FloatType and left_type != Type.IntType:
-            raise WrongExpressionType(left_type)
-
-        divide_expression.right.accept(self)
-        right = self._consume_last_result()
-
-        right_type = VALUE_TO_TYPE_MAP.get(type(right))
-        if right_type != Type.FloatType and right_type != Type.IntType:
-            raise WrongExpressionType(right_type)
-
-        if right == 0:
-            raise DivisionByZeroError()
-
-        if left_type != right_type:
-            raise NotMatchingTypesInBinaryExpression(left_type, right_type)
-
-        if left_type == Type.IntType:
-            self.last_result = left // right
-        elif left_type == Type.FloatType:
-            self.last_result = left / right
+        self._evaluate_arithmetic_expression(
+            left_expr=divide_expression.left,
+            right_expr=divide_expression.right,
+            operator_func=self._safe_divide,
+            allowed_types={Type.IntType, Type.FloatType}
+        )
 
     def visit_modulo_expression(self, modulo_expression: ModuloExpression):
-        modulo_expression.left.accept(self)
-        left = self._consume_last_result()
-
-        left_type = VALUE_TO_TYPE_MAP.get(type(left))
-        if left_type != Type.FloatType and left_type != Type.IntType:
-            raise WrongExpressionType(left_type)
-
-        modulo_expression.right.accept(self)
-        right = self._consume_last_result()
-
-        right_type = VALUE_TO_TYPE_MAP.get(type(right))
-        if right_type != Type.FloatType and right_type != Type.IntType:
-            raise WrongExpressionType(right_type)
-
-        if left_type != right_type:
-            raise NotMatchingTypesInBinaryExpression(left_type, right_type)
-
-        self.last_result = round(left % right, 15)
+        self._evaluate_arithmetic_expression(
+            left_expr=modulo_expression.left,
+            right_expr=modulo_expression.right,
+            operator_func=mod,
+            allowed_types={Type.IntType, Type.FloatType}
+        )
 
     def visit_plus_expression(self, plus_expression: PlusExpression):
-        plus_expression.left.accept(self)
-        left = self._consume_last_result()
-
-        left_type = VALUE_TO_TYPE_MAP.get(type(left))
-        if left_type == Type.BoolType or left_type == Type.VoidType:
-            raise WrongExpressionType(left_type)
-
-        plus_expression.right.accept(self)
-        right = self._consume_last_result()
-
-        right_type = VALUE_TO_TYPE_MAP.get(type(right))
-        if left_type == Type.BoolType or left_type == Type.VoidType:
-            raise WrongExpressionType(right_type)
-
-        if left_type != right_type:
-            raise NotMatchingTypesInBinaryExpression(left_type, right_type)
-
-        self.last_result = left + right
+        self._evaluate_arithmetic_expression(
+            left_expr=plus_expression.left,
+            right_expr=plus_expression.right,
+            operator_func=add,
+            allowed_types={Type.IntType, Type.FloatType, Type.StringType}
+        )
 
     def visit_minus_expression(self, minus_expression: MinusExpression):
-        minus_expression.left.accept(self)
-        left = self._consume_last_result()
-
-        left_type = VALUE_TO_TYPE_MAP.get(type(left))
-        if left_type == Type.BoolType or left_type == Type.VoidType:
-            raise WrongExpressionType(left_type)
-
-        minus_expression.right.accept(self)
-        right = self._consume_last_result()
-
-        right_type = VALUE_TO_TYPE_MAP.get(type(right))
-        if left_type == Type.BoolType or left_type == Type.VoidType:
-            raise WrongExpressionType(right_type)
-
-        if left_type != right_type:
-            raise NotMatchingTypesInBinaryExpression(left_type, right_type)
-
-        self.last_result = left - right
+        self._evaluate_arithmetic_expression(
+            left_expr=minus_expression.left,
+            right_expr=minus_expression.right,
+            operator_func=sub,
+            allowed_types={Type.IntType, Type.FloatType},
+        )
 
     def visit_equals_expression(self, expression: EqualsExpression):
         self._visit_binary_comparison(expression, COMPARISON_OPERATORS['equals'])
@@ -458,6 +367,15 @@ class ProgramExecutor(Visitor):
     def visit_greater_than_or_equals_expression(self, expression: GreaterThanOrEqualsExpression):
         self._visit_binary_comparison(expression, COMPARISON_OPERATORS['greater_than_or_equals'])
 
+    def _evaluate_boolean_expression(self, left_expr: Expression, right_expr: Expression, operator_func: Callable):
+        left_expr.accept(self)
+        left = self._assert_bool(self._consume_last_result())
+
+        right_expr.accept(self)
+        right = self._assert_bool(self._consume_last_result())
+
+        self.last_result = operator_func(left, right)
+
     def _visit_binary_comparison(self, expr, op_func):
         expr.left.accept(self)
         left = self._consume_last_result()
@@ -472,6 +390,13 @@ class ProgramExecutor(Visitor):
 
         self.last_result = op_func(left, right)
 
+    @staticmethod
+    def _assert_bool(value):
+        value_type = VALUE_TO_TYPE_MAP.get(type(value))
+        if value_type != Type.BoolType:
+            raise WrongExpressionType(value_type)
+        return value
+
     def visit_break_statement(self, break_statement: BreakStatement):
         self.break_flag = True
 
@@ -480,10 +405,17 @@ class ProgramExecutor(Visitor):
 
     def _consume_last_result(self):
         if self.last_result is None:
-            raise InterpreterError("There is no value to return")
+            raise NoLastResultError()
         value = self.last_result
         self.last_result = None
         return value
+
+    @staticmethod
+    def _safe_divide(x, y):
+        if y == 0:
+            raise DivisionByZeroError()
+        x_type = VALUE_TO_TYPE_MAP.get(type(x))
+        return x // y if x_type == Type.IntType else x / y
 
     def _cast_expression(self, to_type: Type):
         value = self._consume_last_result()
@@ -555,10 +487,41 @@ class ProgramExecutor(Visitor):
             raise WrongCastType(to_type)
         return cast_map[to_type](value)
 
+    def _evaluate_arithmetic_expression(
+            self,
+            left_expr: Expression,
+            right_expr: Expression,
+            operator_func: Callable,
+            allowed_types: set[Type],
+    ):
+        left_expr.accept(self)
+        left = self._consume_last_result()
+        left_type = VALUE_TO_TYPE_MAP.get(type(left))
+        if left_type not in allowed_types:
+            raise WrongExpressionType(left_type)
+
+        right_expr.accept(self)
+        right = self._consume_last_result()
+        right_type = VALUE_TO_TYPE_MAP.get(type(right))
+        if right_type not in allowed_types:
+            raise WrongExpressionType(right_type)
+
+        if left_type != right_type:
+            raise NotMatchingTypesInBinaryExpression(left_type, right_type)
+
+        result = operator_func(left, right)
+        result_type = VALUE_TO_TYPE_MAP.get(type(result))
+        if result_type != Type.BoolType and result_type != Type.StringType:
+            result = round(result, 15)
+
+        self.last_result = result
+
+
 def main():
     input_code = """
         exception ValueError(int value) {
-            message: string = "Wrong value="+value to string +" - should be higher than 0: ";
+            message: string = "Wrong value="+value to string +" - should be higher than 0";
+            value: int = value;
         }
 
         $
@@ -571,11 +534,14 @@ def main():
         }
 
         void print_even_if_not_divisible_by_5(int number){
+            a = 5;
             while (number > 0) {
                 # comment
                 if (number % 5 == 0) {
-                    break;
+                    number = number - 1;
+                    continue;
                 }elif (is_even(number)) {
+                    number = number - 1;
                     continue;
                 }else{
                     print("x: ", number);
@@ -591,7 +557,7 @@ def main():
                 }
                 print_even_if_not_divisible_by_5(x);
             }catch(BaseException e){
-                print("Error: ", e.message, "\\n \\t Value=", e.value, e.line, "\\n");
+                print("Error: ", e.message, "\\n \\t Value=", e.value, e.position, "\\n");
             }
         }
         """

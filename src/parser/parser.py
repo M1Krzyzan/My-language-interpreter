@@ -398,7 +398,7 @@ class Parser:
 
         return attributes
 
-    # attribute_definition = identifier, ":", simple_type, ["=", expression] ";";
+    # attribute_definition = identifier, ":", simple_type, "=", expression, ";";
     def _parse_attribute(self) -> Optional[Attribute]:
         if self.current_token.type != TokenType.IDENTIFIER:
             return None
@@ -412,12 +412,10 @@ class Parser:
             raise ExpectedSimpleTypeError(self.current_token.position, TokenType.COLON)
 
         self._consume_token()
+        self._consume(TokenType.ASSIGNMENT)
 
-        expression = None
-        if self.current_token.type == TokenType.ASSIGNMENT:
-            self._consume_token()
-            if (expression := self._parse_expression()) is None:
-                raise ExpectedExpressionError(self.current_token.position, TokenType.ASSIGNMENT)
+        if (expression := self._parse_expression()) is None:
+            raise ExpectedExpressionError(self.current_token.position, TokenType.ASSIGNMENT)
 
         self._consume(TokenType.SEMICOLON)
 

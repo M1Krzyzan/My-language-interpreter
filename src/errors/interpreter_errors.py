@@ -46,3 +46,39 @@ class NotMatchingTypesInBinaryExpression(InterpreterError):
     def __init__(self, left_type: Type, right_type: Type):
         message = f'Not matching types in binary operation "{left_type}"!="{right_type}")'
         super().__init__(message)
+
+
+class InvalidReturnTypeException(InterpreterError):
+    def __init__(self, value_type: Type, function_type: Type):
+        message = f'Type mismatch in return value: expected "{function_type}", but got "{value_type}".'
+        super().__init__(message)
+
+class RecursionTooDeepError(InterpreterError):
+    def __init__(self):
+        message = f'Recursion limit reached'
+        super().__init__(message)
+
+class UndefinedExceptionError(InterpreterError):
+    def __init__(self, exception_name: str):
+        message = f'Undefined exception "{exception_name}"'
+        super().__init__(message)
+
+class LoopControlOutsideLoopError(InterpreterError):
+    def __init__(self, name: str):
+        message = f'{name} loop control statement outside loop'
+        super().__init__(message)
+
+class UndefinedAttributeError(InterpreterError):
+    def __init__(self, name: str):
+        message = f'Undefined attribute "{name}"'
+        super().__init__(message)
+
+class NoLastResultError(InterpreterError):
+    def __init__(self):
+        message = f'There is no value to return"'
+        super().__init__(message)
+
+class WRongNumberOfArguments(InterpreterError):
+    def __init__(self, name: str):
+        message = f'Wrong number of arguments in "{name}"'
+        super().__init__(message)

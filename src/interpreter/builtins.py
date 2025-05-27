@@ -16,7 +16,7 @@ builtin_functions = {
 
 
 class BasicException:
-    def __init__(self, position: Position, message: str) -> None:
+    def __init__(self, position: Position, message: str = "BasicException") -> None:
         self.position = position
         self.message = message
 

@@ -101,12 +101,13 @@ int read_number(){
   print("Write number: ";
   return input() to int;
 }
+void main(){
+  number_1 = read_number();
+  number_2 = read_number();
+  result = number_1 / number_2;
+  print(number_1 to string + "/" + number_2 to string + " = " + result to string + "\n");
+}
 
-number_1 = read_number();
-number_2 = read_number();
-
-result = number_1 / number_2;
-print(number_1 to string + "/" + number_2 to string + " = " + result to string + "\n");
 ```
 #### Instrukcja warunkowa `if`
 ```
@@ -136,16 +137,14 @@ void print_even_if_not_divisible_by_5(int x){
 ```
 #### Tworzenie własnych wyjątków i ich filtrowanie
 ```
-exception WrongNumberOfSidesError(int number_of_sides, int line) {
-    message: string = "Wrong number of sides - should be higher than 2: ";
-    number_of_sides: int;
-    line: int;
+exception WrongNumberOfSidesError(int number_of_sides) {
+    message: string = "Wrong number of sides - should be higher than 2";
+    number_of_sides: int = number_of_sides;
 }
 
-exception WrongNumberOfSidesError(float length, int line) {
+exception WrongNumberOfSidesError(float length) {
     message: string = "Wrong length of side - should be higher than 0";
-    length: int;
-    line: int;
+    length: int = length;
 }
 
 void main(){
@@ -153,16 +152,16 @@ void main(){
     print("Enter number of sides of polygon: ");
     n = input() to int;
     if(n < 3){
-      throw WrongNumberOfSidesError(8,n);
+      throw WrongNumberOfSidesError(n);
     }
     print("Enter length of side of polygon: ");
-    int length = input() to int;
+    length = input() to int;
     if(length <= 0){
-      throw WrongLengthOfSideError(13, length);
+      throw WrongLengthOfSideError(length);
     }
-    int perimeter = n*length; 
+    perimeter = n*length; 
   } catch (Exception e){
-    print("You entered wrong data: " + e.message + "\n");
+    print("You entered wrong data: ", e.message);
   }
 }
 ```
@@ -170,7 +169,7 @@ void main(){
 ```
 $ Komentarz
    blokowy $
-int x = 5; # Komentarz jednoliniowy
+x = 5; # Komentarz jednoliniowy
 ```
 ### Formalna specyfikacja i składnia (EBNF)
 ```ebnf
@@ -203,7 +202,7 @@ exception_definition = "exception", identifier,"(", parameters, ")", attributes;
 
 attributes = "{", {attribute_definition}, "}";
 
-attribute_definition = identifier, ":", simple_type, ["=", expression];
+attribute_definition = identifier, ":", simple_type, "=", expression;
 
 while_statement = "while", "(", expression, ")", statement_block;
 
@@ -296,11 +295,10 @@ string_literal = "\"".."\"";
 ```
 
 ### Obsługa błędów
-W przypadku napotkania błędu podczas pracy lexera/parsera/interpretera, error manager agreguje i dzieli błędy na krytyczne i niekrytyczne. 
+W przypadku napotkania błędu podczas pracy lexera/parsera/interpretera rzucany jest odpowiedni wyjątek.
 #### Lekser
 Przykładem błędu leksykalnego jest:
-- InvalidCharacter - błąd występujący, gdy identifikator lub literał zawiera znaki inne niż dozwolone np. var$ jako nazwa zmiennej
-- UnknownToken - token jest nierozpozwnawany
+- UnknownToken - token jest nierozpozwnawany np. $
 - UnterminatedLiteral - brak zamknięcia dla stringa lub komentarza
 #### Parser
 Przykładem błędu parsera jest:
@@ -314,10 +312,10 @@ Przykładem błędu parsera jest:
 
 #### Przykładowe komunikaty o błędzie
 ```
-InvalidCharacter in line 5, column 34;
+InvalidCharacter at line 5, column 34;
 ```
 ```
-UnexpectedToken in line 8, column 22;
+UnexpectedToken at line 8, column 22;
 ```
 
 ### Struktura projektu  
@@ -330,9 +328,6 @@ Analizator składniowy ma za zadanie sprawdzić, czy sekwencja tokenów jest zgo
 
 #### Interpreter  
 Wykonuje kod zgodnie z regułami języka programowania. Interpretuje i wykonuje instrukcje jedna po drugiej.  
-
-#### Error Manager  
-Agreguje i dzieli błędy na krytyczne i niekrytyczne. W momencie napotkania błędu krytycznego podnosi wyjątek, który będzie obsłużony na zewnątrz. Natomiast gdy błąd jest niekrytyczny, użytkownik otrzyma informację o jego wystąpieniu, jednak program może nadal działać poprawnie.  
 
 #### Sposób komunikacji pomiędzy elementami  
 Interpreter tworzy instancję parsera i za pomocą odpowiedniej metody pobiera od niego drzewo AST wygenerowane przez parser. Parser tworzy instancję lexera i wywołuje jego metodę w celu otrzymania kolejnego tokena, na podstawie którego na bieżąco generuje drzewo AST. Każdy element bezpośrednio komunikuje się z Error Managerem, przekazując mu błędy do obsługi.  
