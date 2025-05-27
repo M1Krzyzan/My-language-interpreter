@@ -43,7 +43,7 @@ class ProgramExecutor(Visitor):
         self.functions = {}
         self.exceptions = builtin_exceptions
         self.context_stack = []
-        
+
     def execute(self, program: Program):
         program.accept(self)
         if self.exception_to_throw:
@@ -137,7 +137,8 @@ class ProgramExecutor(Visitor):
             for attr_name, value in exception.attributes.items():
                 value_type = VALUE_TO_TYPE_MAP.get(type(value))
                 typed_value = TypedValue(value_type, value)
-                self.context_stack[-1].add_attribute(catch.name, attr_name, typed_value)
+                if not self.context_stack[-1].add_attribute(catch.name, attr_name, typed_value):
+                    raise AttributeAlreadyDeclaredError(attr_name)
             catch.block.accept(self)
             self.context_stack[-1].pop_scope()
             self.exception_to_throw = None
@@ -185,7 +186,8 @@ class ProgramExecutor(Visitor):
             if value_type != param.type:
                 raise WrongExpressionType(value_type)
             typed_value = TypedValue(value=value, type=param.type)
-            context.declare_variable(param.name, typed_value)
+            if not context.declare_variable(param.name, typed_value):
+                raise FailedVariableDeclarationError(param.name)
 
         eval_attributes = {}
         for attr in exception_def.attributes:
@@ -215,14 +217,15 @@ class ProgramExecutor(Visitor):
             raise RecursionTooDeepError()
 
         if len(eval_arguments) != len(function_def.parameters):
-            raise WRongNumberOfArguments(function_call.name)
+            raise WrongNumberOfArguments(function_call.name)
 
         call_context = FunctionContext(function_call.name)
         self.context_stack.append(call_context)
 
         for param, value in zip(function_def.parameters, eval_arguments):
             typed_value = TypedValue(value=value, type=param.type)
-            self.context_stack[-1].declare_variable(param.name, typed_value)
+            if not self.context_stack[-1].declare_variable(param.name, typed_value):
+                raise FailedVariableDeclarationError(param.name)
 
         try:
             function_def.statement_block.accept(self)
@@ -255,10 +258,12 @@ class ProgramExecutor(Visitor):
         if (declared_variable := context.get_variable(name)) is not None:
             if declared_variable.type != value_type:
                 raise WrongExpressionType(value_type)
-            context.assign_variable(name, value)
+            if not context.assign_variable(name, value):
+                raise FailedValueAssigmentError(name)
         else:
             typed_value = TypedValue(value_type, value)
-            context.declare_variable(name, typed_value)
+            if not context.declare_variable(name, typed_value):
+                raise FailedVariableDeclarationError(name)
 
     def visit_or_expression(self, or_expression: OrExpression):
         self._evaluate_boolean_expression(or_expression.left, or_expression.right, or_)
@@ -287,13 +292,18 @@ class ProgramExecutor(Visitor):
         self.last_result = -value
 
     def visit_attribute_call(self, attribute_call: AttributeCall):
-        attribute = self.context_stack[-1].get_attribute(attribute_call.var_name, attribute_call.attr_name)
-        if attribute is None:
-            raise UndefinedAttributeError("place holder")
+        context = self.context_stack[-1]
+        attr_name = attribute_call.attr_name
+        var_name = attribute_call.var_name
+
+        if (attribute := context.get_attribute(var_name, attr_name)) is None:
+            raise UndefinedAttributeError(attribute_call.attr_name)
+
         self.last_result = attribute.value
 
     def visit_variable(self, variable: Variable):
-        typed_variable = self.context_stack[-1].get_variable(variable.name)
+        if (typed_variable := self.context_stack[-1].get_variable(variable.name)) is None:
+            raise UnableToGetVariable(variable.name)
         variable_value = typed_variable.value
         self.last_result = variable_value
 

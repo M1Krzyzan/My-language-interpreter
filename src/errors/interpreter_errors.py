@@ -17,12 +17,25 @@ class MissingMainFunctionDeclaration(InterpreterError):
         message = "Missing main function declaration in program"
         super().__init__(message)
 
+class FailedValueAssigmentError(InterpreterError):
+    def __init__(self, name: str):
+        message = f'Failed to assign value to variable"{name}")'
+        super().__init__(message)
+
+class UnableToGetVariable(InterpreterError):
+    def __init__(self, name: str):
+        message = f'Failed to acquire value of variable"{name}")'
+        super().__init__(message)
+
+class FailedVariableDeclarationError(InterpreterError):
+    def __init__(self, name: str):
+        message = f'Failed to declare variable"{name}")'
+        super().__init__(message)
 
 class UnknownFunctionCall(InterpreterError):
     def __init__(self, function_name: str):
         message = f'Undeclared function call(name="{function_name}")'
         super().__init__(message)
-
 
 class WrongExpressionType(InterpreterError):
     def __init__(self, exp_type):
@@ -53,32 +66,43 @@ class InvalidReturnTypeException(InterpreterError):
         message = f'Type mismatch in return value: expected "{function_type}", but got "{value_type}".'
         super().__init__(message)
 
+
 class RecursionTooDeepError(InterpreterError):
     def __init__(self):
         message = f'Recursion limit reached'
         super().__init__(message)
+
 
 class UndefinedExceptionError(InterpreterError):
     def __init__(self, exception_name: str):
         message = f'Undefined exception "{exception_name}"'
         super().__init__(message)
 
+
 class LoopControlOutsideLoopError(InterpreterError):
     def __init__(self, name: str):
         message = f'{name} loop control statement outside loop'
         super().__init__(message)
 
+
 class UndefinedAttributeError(InterpreterError):
-    def __init__(self, name: str):
-        message = f'Undefined attribute "{name}"'
+    def __init__(self, attr_name: str, exception_id: str):
+        message = f'There is no attribute "{attr_name}" for {exception_id}'
         super().__init__(message)
+
 
 class NoLastResultError(InterpreterError):
     def __init__(self):
         message = f'There is no value to return"'
         super().__init__(message)
 
-class WRongNumberOfArguments(InterpreterError):
+
+class WrongNumberOfArguments(InterpreterError):
     def __init__(self, name: str):
         message = f'Wrong number of arguments in "{name}"'
+        super().__init__(message)
+
+class AttributeAlreadyDeclaredError(InterpreterError):
+    def __init__(self, attribute_name: str, exception_id: str):
+        message = f'Attribute "{attribute_name}" for exception id "{exception_id}" already declared.'
         super().__init__(message)

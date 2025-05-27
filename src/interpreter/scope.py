@@ -8,15 +8,17 @@ class Scope:
         self.variables = {}
         self.exception_attributes = {}
 
-    def declare_variable(self, name: str, value: TypedValue):
+    def declare_variable(self, name: str, value: TypedValue) -> bool:
         if self.contains(name):
-            raise InterpreterError(f"Variable '{name}' is already declared in this scope.")
+            return False
         self.variables[name] = value
+        return True
 
-    def assign_variable(self, name: str, value: int|float|bool|str):
+    def assign_variable(self, name: str, value: int|float|bool|str) -> bool:
         if (variable := self.variables.get(name)) is None:
-            raise InterpreterError(f"Variable '{name}' is not declared in this scope.")
+            return False
         variable.value = value
+        return True
 
     def contains(self, name: str) -> bool:
         return name in self.variables
@@ -34,5 +36,5 @@ class Scope:
             self.exception_attributes[exception_id] = {}
         self.exception_attributes[exception_id][name] = value
 
-    def get_attribute(self, exception_id, attribute_name):
+    def get_attribute(self, exception_id: str, attribute_name: str):
         return self.exception_attributes[exception_id][attribute_name]

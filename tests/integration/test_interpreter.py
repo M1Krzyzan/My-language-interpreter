@@ -5,7 +5,7 @@ from unittest.mock import patch
 import pytest
 
 from src.errors.interpreter_errors import NotMatchingTypesInBinaryExpression, WrongExpressionType, \
-    InvalidReturnTypeException, RecursionTooDeepError, WRongNumberOfArguments
+    InvalidReturnTypeException, RecursionTooDeepError, WrongNumberOfArguments
 from src.interpreter.executor import ProgramExecutor
 from src.lexer.lexer import DefaultLexer
 from src.lexer.source import Source
@@ -537,7 +537,7 @@ def test_execute_function_call_without_enough_parameters():
         print(func1() to string);
     }}
     """
-    with pytest.raises(WRongNumberOfArguments):
+    with pytest.raises(WrongNumberOfArguments):
         execute_program(input_code)
 
 
