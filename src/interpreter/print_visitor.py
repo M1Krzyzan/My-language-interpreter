@@ -7,9 +7,16 @@ from src.ast.expressions import AdditiveExpression, RelationalExpression, Multip
 from src.ast.statemens import AssignmentStatement, FunctionCall, ThrowStatement, WhileStatement, CatchStatement, \
     TryCatchStatement, ReturnStatement, ContinueStatement, BreakStatement, IfStatement, Attribute, StatementBlock
 from src.ast.visitor import Visitor
+from src.interpreter.builtins import BuiltinFunction, BuiltinException
 
 
 class PrintVisitor(Visitor):
+    def visit_builtin_exception(self, builtin_exception: BuiltinException):
+        pass
+
+    def visit_builtin_function(self, builtin_function: BuiltinFunction):
+        pass
+
     def __init__(self):
         self.indent = 0
 

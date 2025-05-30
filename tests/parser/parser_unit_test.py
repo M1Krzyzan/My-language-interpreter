@@ -3,14 +3,7 @@ import token_generator
 from src.ast.core_structures import Program
 from src.ast.expressions import *
 from src.ast.statemens import *
-from src.errors.parser_errors import (
-    UnexpectedToken,
-    DeclarationExistsError,
-    ExpectedExpressionError,
-    UnknownTypeError,
-    ExpectedConditionError,
-    ExpectedDeclarationError, ExpectedSimpleTypeError, ExpectedStatementBlockError, ExpectedParameterError,
-    ExpectedAttributesError)
+from src.errors.parser_errors import *
 from src.ast.position import Position
 from src.lexer.token_ import TokenType, Token
 from src.parser.parser import Parser

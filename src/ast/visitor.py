@@ -9,6 +9,7 @@ from src.ast.expressions import OrExpression, AndExpression, CastedExpression, \
 from src.ast.statemens import Statement, StatementBlock, Attribute, IfStatement, ReturnStatement, TryCatchStatement, \
     CatchStatement, AssignmentStatement, \
     BreakStatement, ContinueStatement, FunctionCall
+from src.interpreter.builtins import BuiltinFunction, BuiltinException
 
 
 class Visitor(ABC):
@@ -158,4 +159,12 @@ class Visitor(ABC):
 
     @abstractmethod
     def visit_continue_statement(self, continue_statement: ContinueStatement):
+        pass
+
+    @abstractmethod
+    def visit_builtin_function(self, builtin_function: BuiltinFunction):
+        pass
+
+    @abstractmethod
+    def visit_builtin_exception(self, builtin_exception: BuiltinException):
         pass

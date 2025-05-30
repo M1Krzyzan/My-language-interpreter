@@ -23,6 +23,14 @@ def execute_program(input_code: str) -> str:
     return output.getvalue().strip()
 
 
+def generate_nested_prints(value, depth):
+    escaped_value = value.replace('"', '\\"')
+    code = f'"{escaped_value}"'
+    for _ in range(depth):
+        code = f"print({value})"
+    return code
+
+
 @pytest.mark.parametrize(
     "args, expected", [
         ("8 ", "8"),
@@ -457,6 +465,28 @@ def test_while_statement_should_end_after_break():
     assert captured_output == "5\n4\n3\n2\n1"
 
 
+def test_while_statement_should_end_after_return():
+    input_code = f"""
+    int func(){{
+        x = 5;
+        while(x > 0){{
+            print(x);
+            x = x - 1;
+            if(x == 1){{
+                return 1;
+                print("break");
+            }}
+        }}
+        print(x);
+    }}
+    void main(){{
+        func();
+    }}
+    """
+    captured_output = execute_program(input_code)
+    assert captured_output == "5\n4\n3\n2"
+
+
 def test_while_statement_should_skip_rest_of_statements_after_continue():
     input_code = f"""
     void main(){{
@@ -573,7 +603,28 @@ def test_return_type_mismatch_raises_error(func_type, value):
         func1();
     }}
     """
-    with pytest.raises(InvalidReturnTypeException):
+    with pytest.raises(InvalidReturnedValueTypeException):
+        execute_program(input_code)
+
+
+@pytest.mark.parametrize(
+    "func_type", [
+        "int",
+        "float",
+        "bool",
+        "string",
+    ]
+)
+def test_should_raise_when_missing_return_in_non_void_function(func_type):
+    input_code = f"""
+    {func_type} func1(){{
+        x = 5;
+    }}
+    void main(){{
+        func1();
+    }}
+    """
+    with pytest.raises(ReturnStatementMissingError):
         execute_program(input_code)
 
 
@@ -875,6 +926,7 @@ def test_should_raise_when_throw_undefined_exception():
     with pytest.raises(UndefinedExceptionError):
         execute_program(input_code)
 
+
 @pytest.mark.parametrize(
     "stmnt", [
         "break",
@@ -893,6 +945,7 @@ def test_should_raise_when_loop_control_outside_loop(stmnt):
     """
     with pytest.raises(LoopControlOutsideLoopError):
         execute_program(input_code)
+
 
 def test_should_raise_when_call_non_existent_attribute():
     input_code = f"""
@@ -916,7 +969,6 @@ def test_should_raise_when_call_non_existent_attribute():
         execute_program(input_code)
 
 
-
 def test_should_raise_when_no_value_to_read():
     input_code = f"""
     void func1(){{
@@ -927,7 +979,7 @@ def test_should_raise_when_no_value_to_read():
         print(x);
     }}
     """
-    with pytest.raises(NoLastResultError):
+    with pytest.raises(VoidFunctionUsedAsValueError):
         execute_program(input_code)
 
 
@@ -951,4 +1003,159 @@ def test_should_raise_when_attribute_already_declared():
     }}
     """
     with pytest.raises(AttributeAlreadyDeclaredError):
+        execute_program(input_code)
+
+
+@pytest.mark.parametrize(
+    "statement", [
+        "throw ValueError(func1())",
+        "x = func1()",
+        "print(func1())",
+        "func3(func1())"
+    ]
+)
+def test_should_raise_when_void_function_passed_as_value(statement):
+    input_code = f"""
+    exception ValueError(int value) {{
+        message: string = "Text value=" + value to string;
+    }}
+    void func1(){{
+    }}
+    int func2(){{
+        return 2;
+    }}
+    int func3(int x){{
+        return 2;
+    }}
+    void main(){{
+        try{{
+            func2();
+            {statement};
+            print("after func1");
+        }}catch(ValueError e){{
+            print(e.message);
+        }}
+    }}
+    """
+    with pytest.raises(VoidFunctionUsedAsValueError):
+        execute_program(input_code)
+
+
+def test_should_raise_when_result_exceeds_limit():
+    input_code = f"""
+    void main(){{
+        x = {sys.maxsize} + 1;
+    }}
+    """
+    with pytest.raises(ValueOverflowError):
+        execute_program(input_code)
+
+
+def test_should_raise_when_void_function_returns_value():
+    input_code = f"""
+    void main(){{
+        return 5;
+    }}
+    """
+    with pytest.raises(ValueReturnInVoidFunctionError):
+        execute_program(input_code)
+
+
+def test_should_throw_base_exception():
+    input_code = f"""
+    void main(){{
+        throw BasicException();
+    }}
+    """
+    output_value = execute_program(input_code)
+    assert output_value == "\033[31mBase exception at Line 3, Column 9: Exception raised\033[0m"
+
+
+def test_should_throw_base_exception_with_custom_message():
+    input_code = f"""
+    void main(){{
+        throw BasicException("Custom message");
+    }}
+    """
+    output_value = execute_program(input_code)
+    assert output_value == "\033[31mBase exception at Line 3, Column 9: Custom message\033[0m"
+
+
+
+def test_throw_in_condition():
+    input_code = f"""
+    bool func1(){{
+        throw BasicException("Custom message");
+        return false;
+    }}
+    bool func2(){{
+        print("Hello");
+        return true;
+    }}
+    void main(){{
+        while(func1() or func2()){{
+            print("World");
+        }}
+    }}
+    """
+    output_value = execute_program(input_code)
+    assert output_value == "\x1b[31mBase exception at ('position', Line 3, Column 9): ('message', 'Custom message')\x1b[0m"
+
+
+def test_nested_throw():
+    input_code = f"""
+    exception ValueError(int value) {{
+        message: string = "Text value=" + value to string;
+    }}
+    bool func1(){{
+        throw BasicException("Custom message");
+        return false;
+    }}
+    bool func2(){{
+        print("Hello");
+        return true;
+    }}
+    void main(){{
+       try{{
+            throw ValueError(2);
+        }}catch(ValueError e){{
+            try{{
+                print(e.message);
+                throw BasicException("Custom message");
+            }}catch(BasicException e){{
+                print(e.message);
+            }}
+        }}catch(BasicException e){{
+            print(e.message);
+        }}
+    }}
+    """
+    output_value = execute_program(input_code)
+    assert output_value == "Text value=2\nCustom message"
+
+
+def test_nested_exception():
+    input_code = f"""
+    exception ValueError(int value) {{
+        message: string = "Text value=" + value to string;
+    }}
+    int func1(){{
+        throw BasicException(func1() to string);
+        return 2;
+    }}
+    bool func2(){{
+        print("Hello");
+        return true;
+    }}
+    void main(){{
+       try{{
+            throw ValueError(func1());
+        }}catch(ValueError e){{
+            print(e.message);
+        }}catch(BasicException e){{
+            print(e.message);
+        }}
+    }}
+    """
+    with pytest.raises(RecursionTooDeepError):
         execute_program(input_code)

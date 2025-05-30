@@ -167,7 +167,7 @@ void main(){
       throw WrongLengthOfSideError(length);
     }
     perimeter = n*length; 
-  } catch (Exception e){
+  } catch (BasicException e){
     print("You entered wrong data: ", e.message);
   }
 }

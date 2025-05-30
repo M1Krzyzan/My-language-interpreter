@@ -1,3 +1,5 @@
+import sys
+
 from src.ast.position import Position
 from src.ast.types import Type
 
@@ -14,12 +16,6 @@ class InterpreterError(Exception):
 class MissingMainFunctionDeclaration(InterpreterError):
     def __init__(self):
         message = "Missing main function declaration in program"
-        super().__init__(message)
-
-
-class FailedValueAssigmentError(InterpreterError):
-    def __init__(self, name: str, position: Position):
-        message = f'Failed to assign value to variable "{name}" at {position}'
         super().__init__(message)
 
 
@@ -42,12 +38,15 @@ class UnknownFunctionCallError(InterpreterError):
 
 
 class WrongExpressionTypeError(InterpreterError):
-    def __init__(self, value_type: Type, expected_types: list[Type] | Type, position: Position):
+    def __init__(self,
+                 value_type: type,
+                 expected_types: list[type] | type,
+                 position: Position):
         if isinstance(expected_types, list):
-            string = " or ".join(str(v) for v in expected_types)
+            string = " or ".join(v.__name__ for v in expected_types)
         else:
-            string = expected_types
-        message = f'Wrong value type {value_type} expected {string} at {position}'
+            string = expected_types.__name__
+        message = f'Wrong value type {value_type.__name__} expected {string} at {position}'
         super().__init__(message)
 
 
@@ -63,7 +62,7 @@ class NotMatchingTypesInBinaryExpression(InterpreterError):
         super().__init__(message)
 
 
-class InvalidReturnTypeException(InterpreterError):
+class InvalidReturnedValueTypeException(InterpreterError):
     def __init__(self, value_type: Type, function_type: Type):
         message = f'Type mismatch in return value: expected "{function_type}", but got "{value_type}".'
         super().__init__(message)
@@ -93,9 +92,9 @@ class UndefinedAttributeError(InterpreterError):
         super().__init__(message)
 
 
-class NoLastResultError(InterpreterError):
+class VoidFunctionUsedAsValueError(InterpreterError):
     def __init__(self):
-        message = f'There is no value to read'
+        message = f'There is no value to read from void function call'
         super().__init__(message)
 
 
@@ -108,4 +107,22 @@ class WrongNumberOfArguments(InterpreterError):
 class AttributeAlreadyDeclaredError(InterpreterError):
     def __init__(self, attribute_name: str, exception_id: str, position: Position):
         message = f'Attribute "{attribute_name}" for exception id "{exception_id}" already declared at {position}'
+        super().__init__(message)
+
+
+class ValueReturnInVoidFunctionError(InterpreterError):
+    def __init__(self, name: str, position: Position):
+        message = f'Returned non-empty value in function call "{name}" at {position}'
+        super().__init__(message)
+
+
+class ReturnStatementMissingError(InterpreterError):
+    def __init__(self, name: str):
+        message = f'Missing return statement in function "{name}"'
+        super().__init__(message)
+
+
+class ValueOverflowError(InterpreterError):
+    def __init__(self, value: float | int, position: Position):
+        message = f'Value {value} exceeds allowed maximum of {sys.maxsize} at {position}'
         super().__init__(message)
